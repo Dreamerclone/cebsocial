@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Mail, Lock, User, MapPin, Zap, ChevronDown } from 'lucide-react';
+import { Mail, Lock, User, MapPin, Zap, X, ChevronDown } from 'lucide-react';
 import { CEBU_ZONES } from '../lib/constants';
 
 export default function Auth({ onAuthComplete }) {
