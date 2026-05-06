@@ -1,0 +1,63 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground-rgb: 0, 0, 0;
+  --background-start-rgb: 214, 219, 220;
+  --background-end-rgb: 255, 255, 255;
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: white;
+}
+
+@keyframes heart-pop {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.4); }
+  100% { transform: scale(1.1); }
+}
+
+.animate-heart {
+  animation: heart-pop 0.3s ease-out forwards;
+}
+
+@keyframes bell-wiggle {
+  0%, 100% { transform: rotate(0); }
+  25% { transform: rotate(15deg); }
+  50% { transform: rotate(-15deg); }
+  75% { transform: rotate(10deg); }
+}
+
+.animate-wiggle {
+  animation: bell-wiggle 0.5s ease-in-out;
+}
+
+@keyframes slide-down {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-slide-down {
+  animation: slide-down 0.3s ease-out forwards;
+}
+
+@keyframes confetti-pop {
+  0% { transform: translateY(0) scale(0); opacity: 0; }
+  50% { transform: translateY(-50px) scale(1.5); opacity: 1; }
+  100% { transform: translateY(-100px) scale(0); opacity: 0; }
+}
+
+.animate-confetti {
+  animation: confetti-pop 0.6s ease-out forwards;
+}
+
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 8s linear infinite;
+}
