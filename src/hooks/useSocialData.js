@@ -170,19 +170,25 @@ export function useSocialData(addToast) {
 
   const fetchNotifications = useCallback(async () => {
     if (!user?.id) return;
-    const { data: notifyRes } = await supabase
-      .from('notifications')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
+    try {
+      const { data: notifyRes, error } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
 
-    if (notifyRes) {
-      setNotifications(notifyRes.map(n => ({
-        id: n.id,
-        text: n.content,
-        unread: n.unread,
-        time: formatTimeAgo(n.created_at)
-      })));
+      if (error) throw error;
+
+      if (notifyRes) {
+        setNotifications(notifyRes.map(n => ({
+          id: n.id,
+          text: n.content,
+          unread: n.unread,
+          time: formatTimeAgo(n.created_at)
+        })));
+      }
+    } catch (err) {
+      console.error('Error fetching notifications:', err);
     }
   }, [user?.id]);
 
@@ -366,21 +372,19 @@ export function useSocialData(addToast) {
         return p;
     }));
 
-    if (!isLiking) {
-        await supabase.from('likes').delete().match({ post_id: postId, user_id: user.id });
-    } else {
+    if (isLiking) {
         await supabase.from('likes').insert([{ post_id: postId, user_id: user.id }]);
 
-        if (post) {
-            if (post.user_id !== user.id) {
-                await supabase.rpc('increment_karma', { user_id: post?.user_id, amount: 1 });
-            }
+        if (post && post.user_id !== user.id) {
+            await supabase.rpc('increment_karma', { user_id: post?.user_id, amount: 1 });
             await supabase.from('notifications').insert([{
                 user_id: post.user_id,
                 content: `${user.name} liked your post: "${post.content.substring(0, 20)}..."`,
                 unread: true
             }]);
         }
+    } else {
+        await supabase.from('likes').delete().match({ post_id: postId, user_id: user.id });
     }
     // Realtime listener will handle the final sync
   };
@@ -496,9 +500,24 @@ export function useSocialData(addToast) {
   };
 
   const markNotificationsAsRead = async () => {
-    if (!user) return;
-    await supabase.from('notifications').update({ unread: false }).eq('user_id', user.id).eq('unread', true);
-    fetchNotifications();
+    if (!user || notifications.filter(n => n.unread).length === 0) return;
+
+    // Optimistic local update
+    setNotifications(prev => prev.map(n => ({ ...n, unread: false })));
+
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .update({ unread: false })
+        .eq('user_id', user.id)
+        .eq('unread', true);
+
+      if (error) throw error;
+    } catch (err) {
+      console.error('Error marking notifications as read:', err);
+      // Rollback on error
+      fetchNotifications();
+    }
   };
 
   const handleJoinGroup = async (groupId) => {

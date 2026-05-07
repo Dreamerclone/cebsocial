@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Search, X, Bell, MessageSquare, Sun, Moon, LogOut, User, Home, ShoppingBag, Users } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useRouter } from 'next/navigation';
@@ -14,6 +14,7 @@ export default function Navbar({
   const [showNotifs, setShowNotifs] = useState(false);
   const [isWiggling, setIsWiggling] = useState(false);
   const router = useRouter();
+  const notifRef = useRef(null);
 
   const menuItems = [
     { id: 'Feed', icon: <Home size={18} />, label: 'Feed', path: '/' },
@@ -29,10 +30,27 @@ export default function Navbar({
     ).slice(0, 5);
   }, [searchQuery, allUsers]);
 
+  // Click outside handler for notifications
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (notifRef.current && !notifRef.current.contains(event.target)) {
+        if (showNotifs) {
+          setShowNotifs(false);
+          if (notificationCount > 0) {
+            markAsRead();
+          }
+        }
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showNotifs, notificationCount, markAsRead]);
+
   const toggleNotifs = () => {
     const nextShow = !showNotifs;
     setShowNotifs(nextShow);
-    if (nextShow && notificationCount > 0) {
+    // If we are closing it via the button, mark as read
+    if (!nextShow && notificationCount > 0) {
         markAsRead();
     }
   };
@@ -42,7 +60,7 @@ export default function Navbar({
   };
 
   // Trigger wiggle when notification count increases
-  React.useEffect(() => {
+  useEffect(() => {
     if (notificationCount > 0) {
       setIsWiggling(true);
       const timer = setTimeout(() => setIsWiggling(false), 500);
@@ -150,7 +168,7 @@ export default function Navbar({
             </div>
           </button>
 
-          <div className="relative">
+          <div className="relative" ref={notifRef}>
             <button
                 onClick={toggleNotifs}
                 className={`p-2.5 text-muted hover:text-primary-500 bg-gray-50 dark:bg-zinc-900 rounded-xl relative transition-all ${isWiggling ? 'animate-wiggle' : ''}`}
