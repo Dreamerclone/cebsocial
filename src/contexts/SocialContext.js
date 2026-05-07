@@ -49,6 +49,7 @@ export function SocialProvider({ children }) {
     setActiveFilter,
     searchQuery,
     setSearchQuery,
+    markMessagesAsRead: socialData.markMessagesAsRead,
     // Modal states & setters
     selectedImage, setSelectedImage,
     viewingNeighbor, setViewingNeighbor,

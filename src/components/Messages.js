@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { uploadImage } from '../lib/utils';
 
-export default function Messages({ chats, activeChat, activeChatProfile, onSendMessage, onSelectChat, onDeleteChat, addToast }) {
+export default function Messages({ chats, activeChat, activeChatProfile, onSendMessage, onSelectChat, onDeleteChat, addToast, markMessagesAsRead }) {
   const [text, setText] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [isUploading, setIsUploading] = useState(false);
@@ -273,14 +273,19 @@ export default function Messages({ chats, activeChat, activeChatProfile, onSendM
                     </div>
                     <div className="flex-1 text-left overflow-hidden">
                         <div className="flex justify-between items-center mb-0.5">
-                            <span className="font-black text-[14px] uppercase truncate">{chat.name}</span>
+                            <span className={`text-[14px] uppercase truncate ${chat.hasUnread && activeChat !== chat.id ? 'font-black text-primary-600' : 'font-bold text-main'}`}>{chat.name}</span>
                             <span className={`text-[10px] font-bold ${activeChat === chat.id ? 'text-white/60' : 'text-muted'}`}>
                                 {chat.messages?.length > 0 ? new Date(chat.messages[chat.messages.length-1].time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''}
                             </span>
                         </div>
-                        <p className={`text-[12px] truncate font-medium ${activeChat === chat.id ? 'text-white/80' : 'text-muted'}`}>
-                            {chat.lastMsg}
-                        </p>
+                        <div className="flex justify-between items-center">
+                            <p className={`text-[12px] truncate flex-1 ${activeChat === chat.id ? 'text-white/80' : (chat.hasUnread ? 'text-main font-black' : 'text-muted font-medium')}`}>
+                                {chat.lastMsg}
+                            </p>
+                            {chat.hasUnread && activeChat !== chat.id && (
+                                <div className="w-2.5 h-2.5 bg-primary-600 rounded-full ml-2 shadow-lg shadow-primary-500/40 animate-pulse"></div>
+                            )}
+                        </div>
                     </div>
                 </button>
             )) : (

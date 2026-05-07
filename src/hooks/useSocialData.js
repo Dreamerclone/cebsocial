@@ -147,17 +147,24 @@ export function useSocialData(addToast) {
             neighborhood: otherProfile.neighborhood,
             karma: otherProfile.karma,
             lastMsg: '',
+            hasUnread: false,
             messages: []
           };
         }
 
         if (chatMap[otherId]) {
+          const isMe = m.sender_id === user.id;
           chatMap[otherId].messages.push({
+            id: m.id,
             text: m.content,
-            sender: m.sender_id === user.id ? 'me' : 'them',
-            time: m.created_at
+            sender: isMe ? 'me' : 'them',
+            time: m.created_at,
+            unread: m.unread
           });
           chatMap[otherId].lastMsg = m.content;
+          if (!isMe && m.unread) {
+              chatMap[otherId].hasUnread = true;
+          }
         }
       });
       setChats(Object.values(chatMap).sort((a, b) => {
@@ -457,7 +464,8 @@ export function useSocialData(addToast) {
     const { error } = await supabase.from('messages').insert([{
         sender_id: user.id,
         receiver_id: receiverId,
-        content: cleaned
+        content: cleaned,
+        unread: true
     }]);
 
     if (!error) {
@@ -583,12 +591,24 @@ export function useSocialData(addToast) {
     return { error };
   };
 
+  const markMessagesAsRead = async (otherId) => {
+    if (!user || !otherId) return;
+    const { error } = await supabase
+        .from('messages')
+        .update({ unread: false })
+        .eq('receiver_id', user.id)
+        .eq('sender_id', otherId)
+        .eq('unread', true);
+    if (!error) fetchChats();
+  };
+
   return {
     user, setUser, posts, marketItems, allUsers,
     groups, userGroups, notifications, setNotifications, chats, dbStatus, loading,
     leaderboard,
     createPost, createMarketItem, handleLike, handleAddComment, handleMarkSold,
     handleVote, handleJoinEvent, toggleSaveItem, handleSendMessage, markNotificationsAsRead,
+    markMessagesAsRead,
     handleJoinGroup, handleLeaveGroup, handleReport, handleDeleteMarketItem,
     handleDeletePost, updateMarketItem, createGroup,
     fetchGroupMembers: async (groupId) => {

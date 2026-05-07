@@ -7,11 +7,17 @@ import { useSearchParams } from 'next/navigation';
 import DashboardShell from '../../components/DashboardShell';
 
 function MessagesContent() {
-  const { chats, allUsers, handleSendMessage, addToast } = useSocial();
+  const { chats, allUsers, handleSendMessage, addToast, markMessagesAsRead } = useSocial();
   const searchParams = useSearchParams();
   const chatUserId = searchParams.get('chat');
 
   const [activeChat, setActiveChat] = useState(null);
+
+  useEffect(() => {
+    if (activeChat) {
+      markMessagesAsRead(activeChat);
+    }
+  }, [activeChat, chats.find(c => c.id === activeChat)?.hasUnread]);
 
   const activeChatProfile = useMemo(() => {
     if (!chatUserId) return null;
@@ -41,6 +47,7 @@ function MessagesContent() {
           onSendMessage={handleSendMessage}
           onSelectChat={setActiveChat}
           addToast={addToast}
+          markMessagesAsRead={markMessagesAsRead}
       />
     </div>
   );
