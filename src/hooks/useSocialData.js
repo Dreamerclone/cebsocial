@@ -6,6 +6,7 @@ export function useSocialData(addToast) {
   const [user, setUser] = useState(null);
   const [rawPosts, setRawPosts] = useState([]);
   const [rawMarketItems, setRawMarketItems] = useState([]);
+  const [allUsers, setAllUsers] = useState([]);
   const [dbStatus, setDbStatus] = useState('connecting');
   const [loading, setLoading] = useState(true);
 
@@ -191,6 +192,13 @@ export function useSocialData(addToast) {
     if (sData) setSavedItems(sData);
   }, [user?.id]);
 
+  const fetchAllUsers = useCallback(async () => {
+    const { data } = await supabase
+      .from('profiles')
+      .select('id, full_name, avatar_url, neighborhood, karma, initials');
+    if (data) setAllUsers(data);
+  }, []);
+
   const fetchGroups = useCallback(async () => {
     const [groupsRes, myGroupsRes] = await Promise.all([
       supabase.from('groups').select('*'),
@@ -226,7 +234,8 @@ export function useSocialData(addToast) {
         fetchNotifications(),
         fetchGroups(),
         fetchSavedItems(),
-        fetchChats()
+        fetchChats(),
+        fetchAllUsers()
       ]);
       setDbStatus('online');
     } catch (err) {
@@ -280,6 +289,7 @@ export function useSocialData(addToast) {
               }));
           }
           fetchLeaderboard();
+          fetchAllUsers();
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'notifications' }, (payload) => {
           if (payload.new.user_id === user.id) fetchNotifications();
@@ -555,7 +565,7 @@ export function useSocialData(addToast) {
   };
 
   return {
-    user, setUser, posts, marketItems,
+    user, setUser, posts, marketItems, allUsers,
     groups, userGroups, notifications, setNotifications, chats, dbStatus, loading,
     leaderboard,
     createPost, createMarketItem, handleLike, handleAddComment, handleMarkSold,

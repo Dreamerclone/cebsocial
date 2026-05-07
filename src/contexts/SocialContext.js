@@ -38,6 +38,7 @@ export function SocialProvider({ children }) {
 
   const value = {
     ...socialData,
+    allUsers: socialData.allUsers || [],
     addToast,
     toasts,
     removeToast,

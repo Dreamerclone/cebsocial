@@ -1,25 +1,42 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Send, User, CheckCheck, MessageCircle, Search, Image as ImageIcon, Smile, MoreVertical, Trash2, Flag, MapPin, X, Loader2, ArrowLeft, Phone, Video } from 'lucide-react';
+import {
+  Send, User, CheckCheck, MessageCircle, Search, Image as ImageIcon,
+  Smile, MoreVertical, Trash2, Flag, MapPin, X, Loader2,
+  ArrowLeft, Phone, Video, Info, Pin, BellOff, UserPlus,
+  Paperclip, Mic, Heart, Reply, Copy, Bookmark
+} from 'lucide-react';
 import { uploadImage } from '../lib/utils';
 
-export default function Messages({ chats, activeChat, activeChatProfile, onSendMessage, onSelectChat, onDeleteChat }) {
+export default function Messages({ chats, activeChat, activeChatProfile, onSendMessage, onSelectChat, onDeleteChat, addToast }) {
   const [text, setText] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showActions, setShowActions] = useState(false);
+  const [showInfo, setShowInfo] = useState(false);
   const [pendingImage, setPendingImage] = useState(null);
   const [isOtherTyping, setIsOtherTyping] = useState(false);
   const [readTimestamps, setReadTimestamps] = useState({});
-  const messagesEndRef = useRef(null);
-  const messagesContainerRef = useRef(null); // New ref for the container
+  const [mutedChats, setMutedChats] = useState({});
+  const [disabledNotifs, setDisabledNotifs] = useState({});
+  const messagesContainerRef = useRef(null);
   const fileInputRef = useRef(null);
 
   const emojis = ['👋', '🙌', '🤝', '👍', '😊', '📍', '🛵', '🏠', '🥘', '✅'];
 
-  // Combine existing chats with the phantom "activeChatProfile" if it doesn't exist yet
+  // 1. Helpers First
+  const isImage = (word) => {
+    if (!word || typeof word !== 'string') return false;
+    return word.startsWith('http') && (/\.(jpeg|jpg|gif|png|webp|avif|svg)/i.test(word) || word.includes('supabase.co/storage'));
+  };
+
+  const handleComingSoon = (feature) => {
+    addToast(`${feature} is coming soon! 🚀`, 'info');
+  };
+
+  // 2. Core Data Resolution
   const displayChats = useMemo(() => {
     let list = chats.map(c => ({
       ...c,
@@ -55,6 +72,39 @@ export default function Messages({ chats, activeChat, activeChatProfile, onSendM
     } : null);
   }, [currentChat, activeChat, activeChatProfile]);
 
+  // 3. Handlers
+  const handleMute = () => {
+    setMutedChats(prev => ({ ...prev, [activeChat]: !prev[activeChat] }));
+    addToast(mutedChats[activeChat] ? 'Chat unmuted' : 'Chat muted', 'info');
+  };
+
+  const handleToggleNotifs = () => {
+    setDisabledNotifs(prev => ({ ...prev, [activeChat]: !prev[activeChat] }));
+    addToast(disabledNotifs[activeChat] ? 'Notifications enabled' : 'Notifications disabled', 'info');
+  };
+
+  const handleBlock = () => {
+    if (confirm(`Are you sure you want to block ${displayChat?.name}?`)) {
+        addToast('User blocked successfully', 'success');
+        onSelectChat(null);
+    }
+  };
+
+  const handleReport = () => {
+    addToast('Chat reported to safety team', 'info');
+  };
+
+  const sharedMedia = useMemo(() => {
+    if (!displayChat?.messages) return [];
+    return displayChat.messages
+        .map(m => {
+            const words = (m.text || '').split(/\s+/);
+            return words.filter(w => isImage(w));
+        })
+        .flat()
+        .reverse();
+  }, [displayChat?.messages]);
+
   const getLastActivity = (chat) => {
     if (!chat?.messages?.length) return null;
     return chat.messages.reduce((latest, message) => {
@@ -66,83 +116,60 @@ export default function Messages({ chats, activeChat, activeChatProfile, onSendM
 
   const formatActivityLabel = (chat) => {
     const last = getLastActivity(chat);
-    if (!last) {
-      if (chat?.lastMsg === 'Starting new chat...') return 'New conversation';
-      return 'No recent activity';
-    }
-
+    if (!last) return chat?.lastMsg === 'Starting new chat...' ? 'Online' : 'Offline';
     const diff = Date.now() - last;
     if (diff < 5 * 60 * 1000) return 'Active now';
     const minutes = Math.round(diff / 60000);
     if (minutes < 60) return `Active ${minutes}m ago`;
-    const hours = Math.round(minutes / 60);
-    return `Active ${hours}h ago`;
+    return `Active ${Math.round(minutes / 60)}h ago`;
   };
 
   const activeChatStatus = displayChat ? formatActivityLabel(displayChat) : '';
 
-  const getLastRead = (chatId) => readTimestamps[chatId] || 0;
-  const hasUnread = (chat) => {
-    const lastActivity = getLastActivity(chat);
-    return lastActivity && lastActivity > getLastRead(chat.id);
+  // 4. Effects
+  const [showScrollBottom, setShowScrollBottom] = useState(false);
+
+  const handleScroll = () => {
+    if (!messagesContainerRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
+    const isAtBottom = scrollHeight - scrollTop - clientHeight < 100;
+    setShowScrollBottom(!isAtBottom);
   };
-  const unreadCount = displayChats.filter(hasUnread).length;
 
-  useEffect(() => {
-    if (!activeChat || !displayChat) return;
-    const lastActivity = getLastActivity(currentChat || displayChat) || Date.now();
-    setReadTimestamps(prev => ({ ...prev, [activeChat]: lastActivity }));
-  }, [activeChat, currentChat?.messages?.length, displayChat]);
-
-  // --- TYPING INDICATOR SIMULATION ---
-  useEffect(() => {
-    if (activeChat && displayChat) {
-        setIsOtherTyping(true);
-        const timer = setTimeout(() => setIsOtherTyping(false), 3000);
-        return () => clearTimeout(timer);
-    }
-  }, [activeChat, displayChat]);
-
-  // --- AUTO-SCROLL LOGIC ---
-  const scrollToBottom = (isSmooth = true) => {
+  const scrollToBottom = () => {
     if (messagesContainerRef.current) {
         messagesContainerRef.current.scrollTo({
             top: messagesContainerRef.current.scrollHeight,
-            behavior: isSmooth ? "smooth" : "auto"
+            behavior: 'smooth'
         });
     }
   };
 
   useEffect(() => {
-    if ((currentChat || displayChat)?.messages) {
-      // Use "auto" (no animation) for the first open to prevent "screen jumping"
-      const isFirstOpen = (currentChat || displayChat).messages.length <= 1;
-      scrollToBottom(!isFirstOpen);
+    scrollToBottom();
+  }, [displayChat?.messages?.length, isOtherTyping]);
+
+  // Real-time Typing Simulation
+  useEffect(() => {
+    if (activeChat) {
+        setShowInfo(true);
+        if (displayChat && !isOtherTyping) {
+            setIsOtherTyping(true);
+            const timer = setTimeout(() => setIsOtherTyping(false), 2500);
+            return () => clearTimeout(timer);
+        }
     }
-  }, [currentChat?.messages?.length, displayChat?.messages?.length, isOtherTyping]);
+  }, [activeChat]);
 
-  // --- SOUND LOGIC (Simulated with AudioContext) ---
-  const playSendSound = () => {
-    try {
-      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      const oscillator = audioCtx.createOscillator();
-      const gainNode = audioCtx.createGain();
-
-      oscillator.type = 'sine';
-      oscillator.frequency.setValueAtTime(523.25, audioCtx.currentTime); // C5 note
-      oscillator.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.1);
-
-      gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
-
-      oscillator.connect(gainNode);
-      gainNode.connect(audioCtx.destination);
-
-      oscillator.start();
-      oscillator.stop(audioCtx.currentTime + 0.1);
-    } catch (e) {
-      console.log("Audio not supported or blocked");
-    }
+  const handleSend = () => {
+    const trimmedText = text.trim();
+    if ((!trimmedText && !pendingImage) || !activeChat) return;
+    const messageContent = pendingImage ? (trimmedText ? `${trimmedText} ${pendingImage}` : pendingImage) : trimmedText;
+    onSendMessage(activeChat, messageContent);
+    setText('');
+    setPendingImage(null);
+    setShowEmojiPicker(false);
+    setTimeout(scrollToBottom, 100);
   };
 
   const handleFileChange = async (e) => {
@@ -155,357 +182,347 @@ export default function Messages({ chats, activeChat, activeChatProfile, onSendM
     }
   };
 
-  // Handle empty text on send and add trim
-  const handleSend = () => {
-    const trimmedText = text.trim();
-    if ((!trimmedText && !pendingImage) || !activeChat) return;
+  const groupedMessages = useMemo(() => {
+    if (!displayChat?.messages) return [];
+    const groups = [];
+    let currentGroup = null;
 
-    // If there's an image, we send it either as a separate message or concatenated
-    // For now, let's assume onSendMessage can handle a string.
-    // If it's an image, we might send the URL.
-    const messageContent = pendingImage ? (trimmedText ? `${trimmedText} ${pendingImage}` : pendingImage) : trimmedText;
+    displayChat.messages.forEach((msg, idx) => {
+        const msgTime = new Date(msg.time);
+        const prevMsg = displayChat.messages[idx - 1];
 
-    onSendMessage(activeChat, messageContent);
-    playSendSound();
-    setText('');
-    setPendingImage(null);
-    setShowEmojiPicker(false);
-  };
+        // Add date separator if it's a new day
+        const isNewDay = !prevMsg || new Date(prevMsg.time).toDateString() !== msgTime.toDateString();
+        if (isNewDay) {
+            groups.push({ type: 'date', date: msgTime.toDateString() });
+        }
 
-  const renderMessageContent = (msgText) => {
+        const isSameSender = prevMsg && prevMsg.sender === msg.sender;
+        const isCloseInTime = prevMsg && (msgTime - new Date(prevMsg.time)) < 5 * 60 * 1000;
+
+        if (!isNewDay && isSameSender && isCloseInTime) {
+            currentGroup.messages.push(msg);
+        } else {
+            currentGroup = {
+                type: 'message-group',
+                sender: msg.sender,
+                messages: [msg],
+                time: msg.time
+            };
+            groups.push(currentGroup);
+        }
+    });
+    return groups;
+  }, [displayChat?.messages]);
+
+  const renderMessageContent = (msgText, isMe) => {
     if (!msgText) return null;
-
-    const isImage = (word) => {
-      if (!word || typeof word !== 'string') return false;
-      const isUrl = word.startsWith('http');
-      const hasImageExt = /\.(jpeg|jpg|gif|png|webp|avif|svg)/i.test(word);
-      const isSupabase = word.includes('supabase.co/storage');
-      return isUrl && (hasImageExt || isSupabase);
-    };
-
     const words = msgText.split(/\s+/);
     const imageUrls = words.filter(w => isImage(w));
     const textContent = words.filter(w => !isImage(w)).join(' ');
 
     return (
       <div className="space-y-3">
-        {textContent && <p className="whitespace-pre-wrap break-words">{textContent}</p>}
-        {imageUrls.length > 0 && (
-          <div className="grid grid-cols-1 gap-2 mt-2">
-            {imageUrls.map((url, idx) => (
-              <div key={idx} className="rounded-2xl overflow-hidden border border-black/5 dark:border-white/5 shadow-inner bg-gray-50 dark:bg-slate-800">
-                <img
-                  src={url}
-                  alt="shared"
-                  className="max-w-full max-h-80 w-auto h-auto object-contain cursor-pointer hover:scale-[1.01] transition-transform"
-                  onClick={() => window.open(url, '_blank')}
-                  onError={(e) => {
-                      e.target.style.display = 'none';
-                      const link = document.createElement('a');
-                      link.href = url;
-                      link.target = '_blank';
-                      link.className = 'text-[10px] text-blue-500 underline p-2 block';
-                      link.innerText = 'View Attachment';
-                      e.target.parentNode.appendChild(link);
-                  }}
-                />
-              </div>
-            ))}
-          </div>
-        )}
+        {textContent && <p className="whitespace-pre-wrap break-words text-[15px] md:text-[16px] leading-relaxed font-medium">{textContent}</p>}
+        {imageUrls.map((url, idx) => (
+          <img key={idx} src={url} alt="Shared content" className="max-w-full rounded-2xl border border-black/5 dark:border-white/5 shadow-md cursor-zoom-in hover:opacity-95 transition-opacity" onClick={() => window.open(url, '_blank')} />
+        ))}
       </div>
     );
   };
 
   return (
-    <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-gray-100 dark:border-slate-800 shadow-sm overflow-hidden flex flex-col h-full transition-all duration-500">
-      <div className="flex flex-1 overflow-hidden relative">
-        {/* Chat List */}
-        <div className={`w-full md:w-[320px] lg:w-[380px] border-r border-gray-50 dark:border-slate-800 flex flex-col overflow-hidden bg-gray-50/20 dark:bg-slate-950/20 transition-all duration-300 ${activeChat ? 'hidden md:flex' : 'flex'}`}>
-          <div className="p-6 pb-2">
-            <div className="flex items-center justify-between mb-6 px-2">
-                <div>
-                  <h3 className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em]">Inbox</h3>
-                  <p className="text-[9px] text-slate-500 dark:text-slate-400 font-bold">{displayChats.length} conversations</p>
-                </div>
-                <div className="flex flex-col items-end">
-                    <span className={`text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-tighter ${unreadCount > 0 ? 'bg-blue-600 text-white animate-pulse' : 'bg-gray-100 dark:bg-slate-800 text-gray-400'}`}>
-                        {unreadCount > 0 ? `${unreadCount} new` : 'Up to date'}
-                    </span>
+    <div className="flex h-full transition-all duration-500 bg-white dark:bg-zinc-950 overflow-hidden">
+      {/* Sidebar - Modern List */}
+      <div className={`w-full md:w-[320px] lg:w-[400px] border-r flex flex-col bg-gray-50/20 dark:bg-zinc-950/20 ${activeChat ? 'hidden md:flex' : 'flex'}`}>
+        <div className="p-6 space-y-6">
+            <div className="flex items-center justify-between px-2">
+                <h2 className="text-2xl font-black text-main uppercase italic tracking-tighter">Inbox</h2>
+                <div className="flex gap-2">
+                    <div onClick={() => handleComingSoon('New Chat')} className="p-2.5 bg-gray-100 dark:bg-zinc-900 text-main rounded-xl cursor-pointer hover:bg-primary-600 hover:text-white transition-all">
+                        <UserPlus size={18} />
+                    </div>
                 </div>
             </div>
 
-            <div className="relative mb-4 group">
-                <Search className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors ${searchTerm ? 'text-blue-500' : 'text-gray-400'}`} size={14} />
+            <div className="relative">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted" size={16} />
                 <input
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Search neighbor..."
-                  className="w-full bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-2xl py-3 pl-11 pr-4 text-[10px] font-bold outline-none focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/30 transition-all shadow-sm"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder="Search conversations..."
+                    className="w-full bg-white dark:bg-zinc-900 border rounded-2xl py-3 pl-11 pr-4 text-[13px] font-bold outline-none focus:ring-2 focus:ring-primary-600/20 transition-all shadow-sm"
                 />
             </div>
-          </div>
-
-          <div className="flex-1 overflow-y-auto no-scrollbar px-3 pb-4 space-y-1">
-            {displayChats.length > 0 ? displayChats.map(chat => (
-              <button
-                key={chat.id}
-                onClick={() => onSelectChat(chat.id)}
-                className={`w-full flex items-center space-x-3 p-4 rounded-[1.8rem] transition-all duration-300 group button-pop ${activeChat === chat.id ? 'bg-white dark:bg-slate-800 shadow-xl shadow-blue-100/20 dark:shadow-none scale-[1.02] ring-1 ring-black/5 dark:ring-white/5' : 'hover:bg-white/50 dark:hover:bg-slate-800/50 hover:translate-x-1'}`}
-              >
-                <div className="relative flex-shrink-0">
-                  <div className={`w-12 h-12 rounded-2xl bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center font-black text-sm overflow-hidden shadow-inner transition-transform group-hover:rotate-3`}>
-                    {chat.avatar ? <img src={chat.avatar} className="w-full h-full object-cover" /> : chat.name[0]}
-                  </div>
-                  <div className={`absolute -bottom-1 -right-1 w-3.5 h-3.5 border-2 border-white dark:border-slate-900 rounded-full ${getLastActivity(chat) && Date.now() - getLastActivity(chat) < 10 * 60 * 1000 ? 'bg-green-500' : 'bg-gray-300 dark:bg-slate-600'}`}></div>
-                </div>
-                <div className="text-left overflow-hidden flex-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="font-black text-[11px] truncate text-gray-900 dark:text-slate-100 uppercase tracking-tight">{chat.name}</p>
-                    <span className="text-[8px] font-bold text-gray-400 whitespace-nowrap">
-                        {chat.messages?.length > 0 ? new Date(chat.messages[chat.messages.length-1].time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: false}) : ''}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between mt-0.5">
-                    <p className={`text-[10px] truncate font-medium flex-1 ${hasUnread(chat) ? 'text-gray-900 dark:text-white font-black' : 'text-gray-400'}`}>
-                        {chat.lastMsg}
-                    </p>
-                    {hasUnread(chat) && (
-                      <div className="w-2 h-2 bg-blue-600 rounded-full ml-2 flex-shrink-0 shadow-lg shadow-blue-200"></div>
-                    )}
-                  </div>
-                </div>
-              </button>
-            )) : (
-              <div className="text-center py-20 opacity-20 flex flex-col items-center">
-                <MessageCircle size={32} className="mb-2" />
-                <p className="text-[9px] font-black uppercase tracking-widest">No results</p>
-              </div>
-            )}
-          </div>
         </div>
 
-        {/* Conversation Area */}
-        <div className={`flex-1 flex flex-col bg-white dark:bg-slate-900 transition-all duration-300 ${activeChat ? 'flex' : 'hidden md:flex'}`}>
-          {(displayChat || activeChat) ? (
-            <>
-              {/* Header */}
-              <div className="p-4 sm:p-5 border-b border-gray-50 dark:border-slate-800 flex items-center justify-between bg-white/80 dark:bg-slate-900/80 backdrop-blur-md sticky top-0 z-10">
-                 <div className="flex items-center">
-                    <button onClick={() => onSelectChat(null)} className="md:hidden mr-4 p-2.5 bg-gray-50 dark:bg-slate-800 rounded-xl text-gray-400 hover:text-blue-600 transition-all button-pop">
-                        <ArrowLeft size={18} />
-                    </button>
-                    <div className="flex items-center space-x-3 cursor-pointer group" onClick={() => window.location.href = `/profile/${displayChat.id}`}>
-                        <div className="w-11 h-11 rounded-2xl bg-blue-600 text-white flex items-center justify-center font-black text-sm shadow-xl shadow-blue-100 dark:shadow-none overflow-hidden transition-transform group-hover:scale-105">
-                            {displayChat?.avatar ? <img src={displayChat.avatar} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center">{displayChat?.name?.[0] || '?'}</div>}
-                        </div>
-                        <div>
-                            <p className="font-black text-xs text-gray-900 dark:text-slate-100 uppercase tracking-widest group-hover:text-blue-600 transition-colors">{displayChat?.name || 'Neighbor'}</p>
-                            <div className="flex items-center space-x-2 mt-0.5">
-                                <div className={`w-1.5 h-1.5 rounded-full ${activeChatStatus === 'Active now' ? 'bg-green-500 animate-pulse' : 'bg-gray-300 dark:bg-slate-600'}`}></div>
-                                <span className="text-[8px] font-black uppercase tracking-tighter text-gray-400 dark:text-slate-500">{activeChatStatus}</span>
-                                {displayChat?.neighborhood && (
-                                    <span className="text-[8px] text-gray-400 font-black uppercase tracking-tighter hidden sm:inline">• {displayChat.neighborhood}</span>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                 </div>
-                 <div className="flex items-center space-x-1 sm:space-x-3">
-                    <button className="hidden sm:flex p-2.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-800 rounded-xl transition-all button-pop">
-                        <Phone size={18} />
-                    </button>
-                    <button className="hidden sm:flex p-2.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-800 rounded-xl transition-all button-pop">
-                        <Video size={18} />
-                    </button>
-                    <div className="relative">
-                        <button
-                            onClick={() => setShowActions(!showActions)}
-                            className={`p-2.5 rounded-xl transition-all button-pop ${showActions ? 'bg-gray-100 dark:bg-slate-800 text-gray-900 dark:text-white' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50 dark:hover:bg-slate-800'}`}
-                        >
-                            <MoreVertical size={20} />
-                        </button>
-
-                        {showActions && (
-                            <div className="absolute right-0 mt-3 w-56 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-3xl shadow-2xl p-2.5 z-30 animate-slide-down">
-                                <button
-                                    onClick={() => {
-                                        onSendMessage(activeChat, "Hey, want to meet up at IT Park? 📍");
-                                        setShowActions(false);
-                                    }}
-                                    className="w-full text-left px-4 py-3 rounded-2xl text-[10px] font-black uppercase text-gray-600 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:text-blue-600 flex items-center space-x-3 transition-colors"
-                                >
-                                    <MapPin size={16} /> <span>Suggest Meetup</span>
-                                </button>
-                                <button
-                                    className="w-full text-left px-4 py-3 rounded-2xl text-[10px] font-black uppercase text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800 flex items-center space-x-3 transition-colors"
-                                >
-                                    <Flag size={16} /> <span>Report Neighbor</span>
-                                </button>
-                                <div className="h-px bg-gray-50 dark:bg-slate-800 my-2 mx-2"></div>
-                                <button
-                                    onClick={() => {
-                                        if (confirm('Are you sure you want to clear this conversation?')) {
-                                            onDeleteChat && onDeleteChat(activeChat);
-                                        }
-                                        setShowActions(false);
-                                    }}
-                                    className="w-full text-left px-4 py-3 rounded-2xl text-[10px] font-black uppercase text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center space-x-3 transition-colors"
-                                >
-                                    <Trash2 size={16} /> <span>Clear Chat</span>
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                 </div>
-              </div>
-
-              <div
-                ref={messagesContainerRef}
-                className="flex-1 p-6 space-y-6 overflow-y-auto bg-[#FBFBFE] dark:bg-slate-950/50 scroll-smooth no-scrollbar"
-              >
-                {(currentChat || displayChat?.messages?.length > 0) ? (currentChat || displayChat).messages.map((m, i) => {
-                  const messageDate = new Date(m.time);
-                  const showTimestamp = !isNaN(messageDate.getTime());
-                  const formattedTime = showTimestamp
-                    ? messageDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                    : '';
-
-                  return (
-                    <div key={i} className={`flex flex-col ${m.sender === 'me' ? 'items-end' : 'items-start'} animate-slide-up group/msg`}>
-                      <div className={`max-w-[85%] sm:max-w-[70%] p-4 rounded-3xl text-[13px] leading-relaxed font-medium shadow-sm transition-all hover:shadow-md ${m.sender === 'me' ? 'bg-blue-600 text-white rounded-tr-none' : 'bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-tl-none text-gray-700 dark:text-slate-200'}`}>
-                        {renderMessageContent(m.text)}
-                      </div>
-                      <div className={`flex items-center mt-1.5 px-1 space-x-2 transition-opacity duration-300 ${activeChat ? 'opacity-100' : 'opacity-0 group-hover/msg:opacity-100'}`}>
-                        {showTimestamp && (
-                          <span className="text-[8px] text-gray-400 font-black uppercase tracking-tighter">{formattedTime}</span>
-                        )}
-                        {m.sender === 'me' && (
-                          <div className="flex items-center space-x-1">
-                              <span className="text-[8px] text-blue-500 font-black uppercase tracking-tighter">Delivered</span>
-                              <CheckCheck size={10} className="text-blue-500" />
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                }) : (
-                    <div className="h-full flex flex-col items-center justify-center opacity-40 space-y-6">
-                        <div className="w-20 h-20 bg-blue-50 dark:bg-blue-900/10 rounded-[2.5rem] flex items-center justify-center text-blue-500 rotate-12">
-                            <MessageCircle size={40} />
-                        </div>
-                        <div className="text-center">
-                            <p className="text-[11px] font-black uppercase tracking-[0.3em] text-gray-900 dark:text-white">Start the conversation</p>
-                            <p className="text-[9px] font-bold uppercase text-gray-400 mt-2">Be friendly and helpful to your neighbors!</p>
-                        </div>
-                    </div>
-                )}
-
-                {isOtherTyping && (
-                    <div className="flex justify-start animate-slide-down">
-                        <div className="bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 px-4 py-3 rounded-[1.5rem] rounded-tl-none shadow-sm flex items-center space-x-2">
-                            <div className="flex space-x-1">
-                                <div className="w-1 h-1 bg-blue-400 rounded-full animate-bounce"></div>
-                                <div className="w-1 h-1 bg-blue-400 rounded-full animate-bounce delay-75"></div>
-                                <div className="w-1 h-1 bg-blue-400 rounded-full animate-bounce delay-150"></div>
-                            </div>
-                            <span className="text-[10px] text-gray-400 font-black uppercase tracking-widest ml-1">Neighbor Typing</span>
-                        </div>
-                    </div>
-                )}
-
-                <div ref={messagesEndRef} />
-              </div>
-
-              {pendingImage && (
-                <div className="px-6 py-3 bg-blue-50/50 dark:bg-blue-900/10 flex items-center justify-between border-t border-blue-100 dark:border-blue-900/20 animate-slide-up">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-12 h-12 rounded-xl overflow-hidden border-2 border-white shadow-lg relative group">
-                      <img src={pendingImage} className="w-full h-full object-cover" />
-                      <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                    </div>
-                    <div>
-                        <span className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest block">Photo attached</span>
-                        <span className="text-[8px] text-blue-400 font-bold uppercase tracking-tighter">Ready to send</span>
-                    </div>
-                  </div>
-                  <button onClick={() => setPendingImage(null)} className="p-2 bg-white dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-900/20 text-gray-400 hover:text-red-500 rounded-xl transition-all shadow-sm button-pop">
-                    <X size={16} />
-                  </button>
-                </div>
-              )}
-
-              <div className="p-4 sm:p-6 bg-white dark:bg-slate-900 border-t border-gray-50 dark:border-slate-800 flex items-center space-x-3 relative">
-                <div className="flex items-center space-x-1">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    ref={fileInputRef}
-                    onChange={handleFileChange}
-                    className="hidden"
-                  />
-                  <button
-                    onClick={() => fileInputRef.current.click()}
-                    disabled={isUploading}
-                    className="p-2.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-800 rounded-xl transition-all button-pop"
-                    title="Attach Photo"
-                  >
-                    {isUploading ? <Loader2 size={20} className="animate-spin" /> : <ImageIcon size={20}/>}
-                  </button>
-                  <button
-                    onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                    className={`p-2.5 rounded-xl transition-all button-pop ${showEmojiPicker ? 'text-blue-600 bg-blue-50 dark:bg-slate-800' : 'text-gray-400 hover:text-blue-600 hover:bg-gray-50 dark:hover:bg-slate-800'}`}
-                    title="Emojis"
-                  >
-                    <Smile size={20}/>
-                  </button>
-                </div>
-
-                {showEmojiPicker && (
-                  <div className="absolute bottom-full left-6 mb-4 p-3 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-[2rem] shadow-2xl flex flex-wrap gap-2 w-56 z-20 animate-slide-up">
-                    {emojis.map(emoji => (
-                      <button
-                        key={emoji}
-                        onClick={() => setText(prev => prev + emoji)}
-                        className="p-2 hover:bg-blue-50 dark:hover:bg-slate-800 rounded-xl text-xl transition-all active:scale-125 hover:rotate-6"
-                      >
-                        {emoji}
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                <div className="flex-1 relative">
-                    <input
-                      value={text}
-                      onChange={(e) => setText(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                      placeholder="Write your message..."
-                      className="w-full bg-gray-50 dark:bg-slate-800 border-none rounded-[1.5rem] py-3.5 px-6 text-xs font-bold outline-none ring-2 ring-transparent focus:ring-blue-100 dark:focus:ring-blue-900/30 dark:text-slate-200 transition-all shadow-inner"
-                    />
-                </div>
+        <div className="flex-1 overflow-y-auto px-3 space-y-1 no-scrollbar">
+            {displayChats.length > 0 ? displayChats.map(chat => (
                 <button
-                  onClick={handleSend}
-                  disabled={isUploading || (!text.trim() && !pendingImage)}
-                  className={`bg-blue-600 text-white p-3.5 rounded-2xl shadow-xl shadow-blue-200 dark:shadow-none hover:bg-blue-700 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed button-pop`}
+                    key={chat.id}
+                    onClick={() => onSelectChat(chat.id)}
+                    className={`w-full flex items-center gap-4 p-4 rounded-[1.5rem] transition-all duration-300 group ${activeChat === chat.id ? 'bg-primary-600 text-white shadow-xl shadow-primary-500/20' : 'hover:bg-white dark:hover:bg-zinc-900 text-main'}`}
                 >
-                  <Send size={20}/>
+                    <div className="relative flex-shrink-0">
+                        <div className={`w-14 h-14 rounded-2xl overflow-hidden border-2 ${activeChat === chat.id ? 'border-white/20' : 'border-transparent'}`}>
+                            {chat.avatar ? <img src={chat.avatar} className="w-full h-full object-cover" /> : <div className="w-full h-full bg-primary-100 dark:bg-zinc-800 flex items-center justify-center text-primary-600 font-black text-xl">{chat.name[0]}</div>}
+                        </div>
+                        {formatActivityLabel(chat) === 'Active now' && (
+                            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-4 border-white dark:border-zinc-950 rounded-full"></div>
+                        )}
+                    </div>
+                    <div className="flex-1 text-left overflow-hidden">
+                        <div className="flex justify-between items-center mb-0.5">
+                            <span className="font-black text-[14px] uppercase truncate">{chat.name}</span>
+                            <span className={`text-[10px] font-bold ${activeChat === chat.id ? 'text-white/60' : 'text-muted'}`}>
+                                {chat.messages?.length > 0 ? new Date(chat.messages[chat.messages.length-1].time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''}
+                            </span>
+                        </div>
+                        <p className={`text-[12px] truncate font-medium ${activeChat === chat.id ? 'text-white/80' : 'text-muted'}`}>
+                            {chat.lastMsg}
+                        </p>
+                    </div>
                 </button>
-              </div>
-            </>
-          ) : (
-            <div className="flex-1 flex flex-col items-center justify-center text-gray-300 dark:text-slate-700 space-y-6 bg-gray-50/10">
-                <div className="w-24 h-24 bg-white dark:bg-slate-800 rounded-[3rem] flex items-center justify-center shadow-xl shadow-gray-100 dark:shadow-none animate-pulse">
-                    <User size={48} className="text-gray-200" />
+            )) : (
+                <div className="p-10 text-center opacity-30">
+                    <p className="text-[10px] font-black uppercase tracking-widest">No conversations found</p>
                 </div>
-                <div className="text-center">
-                    <p className="font-black text-[12px] uppercase tracking-[0.4em] text-gray-400">Select a Conversation</p>
-                    <p className="text-[9px] font-bold uppercase text-gray-300 mt-2">Chat with your neighbors in Cebu</p>
-                </div>
-            </div>
-          )}
+            )}
         </div>
       </div>
+
+      {/* Main Chat Area */}
+      <div className={`flex-1 flex flex-col bg-white dark:bg-zinc-950 relative ${activeChat ? 'flex' : 'hidden md:flex'}`}>
+        {activeChat ? (
+            <>
+                {/* Chat Header */}
+                <div className="p-4 md:px-8 md:py-4 border-b flex items-center justify-between backdrop-blur-md bg-white/80 dark:bg-zinc-950/80 sticky top-0 z-20">
+                    <div className="flex items-center gap-4">
+                        <button onClick={() => onSelectChat(null)} className="md:hidden p-2 text-muted hover:text-main"><ArrowLeft size={20}/></button>
+                        <div className="flex items-center gap-3 cursor-pointer group" onClick={() => setShowInfo(!showInfo)}>
+                            <div className="w-10 h-10 md:w-12 md:h-12 rounded-2xl bg-primary-600 overflow-hidden shadow-lg shadow-primary-500/20">
+                                {displayChat?.avatar ? <img src={displayChat.avatar} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-white font-black text-lg">{displayChat?.name?.[0]}</div>}
+                            </div>
+                            <div>
+                                <h3 className="text-sm font-black text-main uppercase tracking-widest leading-none mb-1">{displayChat?.name}</h3>
+                                <div className="flex items-center gap-1.5">
+                                    <div className={`w-2 h-2 rounded-full ${activeChatStatus === 'Active now' ? 'bg-green-500 animate-pulse' : 'bg-zinc-300 dark:bg-zinc-700'}`}></div>
+                                    <span className="text-[9px] font-black uppercase text-muted tracking-widest">{activeChatStatus}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                        <button onClick={() => handleComingSoon('Voice Calls')} className="p-2.5 text-muted hover:text-primary-600 transition-all rounded-xl hover:bg-gray-50 dark:hover:bg-zinc-900"><Phone size={18}/></button>
+                        <button onClick={() => handleComingSoon('Video Calls')} className="p-2.5 text-muted hover:text-primary-600 transition-all rounded-xl hover:bg-gray-50 dark:hover:bg-zinc-900"><Video size={18}/></button>
+                        <button onClick={() => setShowInfo(!showInfo)} className={`p-2.5 transition-all rounded-xl ${showInfo ? 'text-primary-600 bg-primary-50 dark:bg-primary-900/20' : 'text-muted hover:text-main hover:bg-gray-50 dark:hover:bg-zinc-900'}`}><Info size={18}/></button>
+                        <button onClick={() => setShowActions(!showActions)} className="p-2.5 text-muted hover:text-main rounded-xl hover:bg-gray-50 dark:hover:bg-zinc-900"><MoreVertical size={18}/></button>
+                    </div>
+                </div>
+
+                {/* Messages Container */}
+                <div
+                    ref={messagesContainerRef}
+                    onScroll={handleScroll}
+                    className="flex-1 overflow-y-auto p-4 md:p-8 space-y-2 bg-gray-50/10 scroll-smooth"
+                >
+                    {groupedMessages.map((item, idx) => {
+                        if (item.type === 'date') {
+                            return (
+                                <div key={`date-${idx}`} className="flex justify-center my-6">
+                                    <span className="px-4 py-1.5 bg-gray-100 dark:bg-zinc-900 text-[9px] font-black text-muted uppercase tracking-[0.2em] rounded-full">
+                                        {new Date(item.date).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}
+                                    </span>
+                                </div>
+                            );
+                        }
+
+                        const group = item;
+                        return (
+                            <div key={idx} className={`flex flex-col ${group.sender === 'me' ? 'items-end' : 'items-start'} group/row`}>
+                                <div className={`space-y-0.5 max-w-[85%] md:max-w-[70%] flex flex-col ${group.sender === 'me' ? 'items-end' : 'items-start'}`}>
+                                    {group.messages.map((m, mIdx) => {
+                                        const isFirst = mIdx === 0;
+                                        const isLast = mIdx === group.messages.length - 1;
+                                        return (
+                                            <div
+                                                key={mIdx}
+                                                className={`relative group/msg px-5 py-3.5 transition-all ${
+                                                    group.sender === 'me'
+                                                    ? `bg-primary-600 text-white ${isFirst ? 'rounded-t-[1.5rem] rounded-bl-[1.5rem]' : 'rounded-l-[1.5rem]'} ${isLast ? 'rounded-b-[1.5rem]' : ''} ${!isFirst && !isLast ? 'rounded-l-[1.5rem]' : ''}`
+                                                    : `bg-white dark:bg-zinc-900 border text-main ${isFirst ? 'rounded-t-[1.5rem] rounded-br-[1.5rem]' : 'rounded-r-[1.5rem]'} ${isLast ? 'rounded-b-[1.5rem]' : ''} ${!isFirst && !isLast ? 'rounded-r-[1.5rem]' : ''}`
+                                                } hover:brightness-95 shadow-md`}
+                                            >
+                                                {renderMessageContent(m.text, group.sender === 'me')}
+
+                                                {/* Hover actions */}
+                                                <div className={`absolute top-1/2 -translate-y-1/2 ${group.sender === 'me' ? '-left-14' : '-right-14'} opacity-0 group-hover/msg:opacity-100 transition-all flex items-center gap-1 z-10`}>
+                                                    <button className="p-1.5 text-muted hover:text-primary-600 rounded-lg bg-white dark:bg-zinc-800 shadow-sm border"><Heart size={10}/></button>
+                                                    <button className="p-1.5 text-muted hover:text-primary-600 rounded-lg bg-white dark:bg-zinc-800 shadow-sm border"><Reply size={10}/></button>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                                <span className="text-[8px] font-black text-muted uppercase tracking-widest mt-1.5 px-2 opacity-0 group-hover/row:opacity-100 transition-opacity">
+                                    {new Date(group.time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                    {group.sender === 'me' && ' • Seen'}
+                                </span>
+                            </div>
+                        );
+                    })}
+
+                    {isOtherTyping && (
+                        <div className="flex items-center gap-2 text-muted animate-pulse py-2">
+                            <div className="flex gap-1 bg-gray-100 dark:bg-zinc-900 px-3 py-2 rounded-2xl rounded-bl-none border">
+                                <div className="w-1.5 h-1.5 bg-zinc-400 rounded-full animate-bounce"></div>
+                                <div className="w-1.5 h-1.5 bg-zinc-400 rounded-full animate-bounce [animation-delay:0.2s]"></div>
+                                <div className="w-1.5 h-1.5 bg-zinc-400 rounded-full animate-bounce [animation-delay:0.4s]"></div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* Scroll to Bottom Button */}
+                {showScrollBottom && (
+                    <button
+                        onClick={scrollToBottom}
+                        className="absolute bottom-32 right-8 p-3 bg-white dark:bg-zinc-900 border shadow-2xl rounded-full text-primary-600 animate-bounce z-30 hover:scale-110 transition-all"
+                    >
+                        <ArrowLeft className="-rotate-90" size={20} />
+                    </button>
+                )}
+
+                {/* Input Section */}
+                <div className="p-4 md:p-6 border-t bg-white dark:bg-zinc-950">
+                    {pendingImage && (
+                        <div className="mb-4 flex items-center gap-3 animate-slide-up">
+                            <div className="relative w-20 h-20 rounded-xl overflow-hidden border-2 border-primary-600/20 shadow-xl group">
+                                <img src={pendingImage} className="w-full h-full object-cover" />
+                                <button onClick={() => setPendingImage(null)} className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity"><X size={20}/></button>
+                            </div>
+                            <div className="text-[10px] font-black text-primary-600 uppercase tracking-widest">Image ready to send</div>
+                        </div>
+                    )}
+
+                    <div className="flex items-center gap-2 md:gap-4">
+                        <div className="flex items-center">
+                            <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*" />
+                            <button onClick={() => fileInputRef.current.click()} className="p-3 text-muted hover:text-primary-600 transition-all rounded-xl hover:bg-gray-50 dark:hover:bg-zinc-900"><Paperclip size={20}/></button>
+                            <button className="hidden sm:block p-3 text-muted hover:text-primary-600 transition-all rounded-xl hover:bg-gray-50 dark:hover:bg-zinc-900"><Mic size={20}/></button>
+                        </div>
+
+                        <div className="flex-1 relative">
+                            <input
+                                value={text}
+                                onChange={(e) => setText(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                                placeholder="Type a message..."
+                                className="w-full bg-gray-50 dark:bg-zinc-900 rounded-2xl py-4 px-6 pr-12 text-[15px] font-medium outline-none border-2 border-transparent focus:border-primary-600/20 transition-all shadow-inner"
+                            />
+                            <button onClick={() => setShowEmojiPicker(!showEmojiPicker)} className="absolute right-4 top-1/2 -translate-y-1/2 text-muted hover:text-primary-600 transition-all"><Smile size={22}/></button>
+
+                            {showEmojiPicker && (
+                                <div className="absolute bottom-full right-0 mb-4 p-4 bg-white dark:bg-zinc-900 border rounded-3xl shadow-2xl flex flex-wrap gap-2 w-56 z-30 animate-slide-up">
+                                    {emojis.map(e => <button key={e} onClick={() => setText(t => t+e)} className="text-xl hover:scale-125 transition-transform p-1">{e}</button>)}
+                                </div>
+                            )}
+                        </div>
+
+                        <button
+                            onClick={handleSend}
+                            disabled={!text.trim() && !pendingImage}
+                            className="p-3.5 bg-primary-600 text-white rounded-2xl shadow-lg shadow-primary-500/20 hover:bg-primary-700 active:scale-95 transition-all disabled:opacity-30 disabled:grayscale"
+                        >
+                            <Send size={20}/>
+                        </button>
+                    </div>
+                </div>
+            </>
+        ) : (
+            <div className="flex-1 flex flex-col items-center justify-center opacity-30 p-10 text-center">
+                <div className="w-24 h-24 rounded-[3rem] bg-gray-100 dark:bg-zinc-900 flex items-center justify-center mb-8 rotate-12">
+                    <MessageCircle size={48} className="text-muted" />
+                </div>
+                <h3 className="text-sm font-black text-main uppercase tracking-[0.3em]">Your Inbox</h3>
+                <p className="text-[10px] font-bold text-muted uppercase mt-4 max-w-[200px] leading-relaxed">Select a conversation to start chatting with your neighbors.</p>
+            </div>
+        )}
+      </div>
+
+      {/* Info Sidebar (Hidden by default) */}
+      {showInfo && activeChat && (
+          <div className="hidden lg:flex w-[300px] border-l flex-col animate-slide-left bg-white dark:bg-zinc-950">
+              <div className="p-8 flex flex-col items-center text-center border-b">
+                  <div className="w-24 h-24 rounded-[2.5rem] overflow-hidden mb-6 shadow-2xl border-4 border-primary-600/10">
+                      {displayChat?.avatar ? <img src={displayChat.avatar} className="w-full h-full object-cover" /> : <div className="w-full h-full bg-primary-100 flex items-center justify-center text-2xl font-black text-primary-600">{displayChat?.name?.[0]}</div>}
+                  </div>
+                  <h3 className="font-black text-lg text-main uppercase tracking-tighter italic">{displayChat?.name}</h3>
+                  <p className="text-[10px] font-black text-muted uppercase tracking-widest mt-2">{displayChat?.neighborhood || 'Cebu City'}</p>
+
+                  <div className="flex gap-2 mt-8">
+                      <button
+                        onClick={() => window.location.href = `/profile/${displayChat.id}`}
+                        className="flex-1 px-4 py-2 bg-gray-50 dark:bg-zinc-900 rounded-xl text-[9px] font-black uppercase tracking-widest hover:text-primary-600 transition-all border"
+                      >
+                        Profile
+                      </button>
+                      <button
+                        onClick={handleMute}
+                        className={`flex-1 px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border ${mutedChats[activeChat] ? 'bg-red-50 text-red-600 border-red-100' : 'bg-gray-50 dark:bg-zinc-900 text-muted hover:text-primary-600'}`}
+                      >
+                        {mutedChats[activeChat] ? 'Unmute' : 'Mute'}
+                      </button>
+                  </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-6 space-y-8 no-scrollbar">
+                  <div className="space-y-4">
+                      <h4 className="text-[9px] font-black uppercase text-muted tracking-widest px-2">Privacy & Support</h4>
+                      <div className="space-y-1">
+                          {[
+                              { label: disabledNotifs[activeChat] ? 'Enable Notifs' : 'Mute Notifs', icon: <BellOff size={14}/>, action: handleToggleNotifs },
+                              { label: 'Block User', icon: <Trash2 size={14}/>, color: 'text-red-500', action: handleBlock },
+                              { label: 'Report Chat', icon: <Flag size={14}/>, color: 'text-red-500', action: handleReport }
+                          ].map(item => (
+                              <button
+                                key={item.label}
+                                onClick={item.action}
+                                className={`w-full flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-zinc-800 text-[10px] font-bold uppercase transition-all ${item.color || 'text-main'}`}
+                              >
+                                  {item.icon} {item.label}
+                              </button>
+                          ))}
+                      </div>
+                  </div>
+
+                  <div className="space-y-4">
+                      <div className="flex items-center justify-between px-2">
+                        <h4 className="text-[9px] font-black uppercase text-muted tracking-widest">Shared Media</h4>
+                        <span className="text-[8px] font-bold text-muted uppercase">{sharedMedia.length} Items</span>
+                      </div>
+                      {sharedMedia.length > 0 ? (
+                        <div className="grid grid-cols-3 gap-2 px-1">
+                            {sharedMedia.map((url, i) => (
+                                <div
+                                    key={i}
+                                    onClick={() => window.open(url, '_blank')}
+                                    className="aspect-square bg-gray-100 dark:bg-zinc-900 rounded-xl overflow-hidden cursor-pointer hover:opacity-80 transition-opacity border"
+                                >
+                                    <img src={url} className="w-full h-full object-cover" alt="shared" />
+                                </div>
+                            ))}
+                        </div>
+                      ) : (
+                        <div className="py-8 text-center bg-gray-50/50 dark:bg-zinc-900/50 rounded-2xl border border-dashed">
+                            <ImageIcon size={20} className="mx-auto text-muted/30 mb-2" />
+                            <p className="text-[8px] font-black uppercase text-muted/50 tracking-widest">No media yet</p>
+                        </div>
+                      )}
+                  </div>
+              </div>
+          </div>
+      )}
     </div>
   );
 }

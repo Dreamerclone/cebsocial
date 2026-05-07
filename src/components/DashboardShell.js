@@ -22,7 +22,7 @@ export default function DashboardShell({ children }) {
     activeFilter, setActiveFilter, searchQuery, setSearchQuery, addToast,
     handleSendMessage, createGroup,
     toggleSaveItem, updateMarketItem,
-    fetchGroupMembers,
+    fetchGroupMembers, allUsers,
     // Modal states from context
     selectedImage, setSelectedImage,
     viewingNeighbor, setViewingNeighbor,
@@ -85,12 +85,21 @@ export default function DashboardShell({ children }) {
   };
 
   const isMessagesPage = pathname.startsWith('/messages');
+  const isProfilePage = pathname.startsWith('/profile');
+  const isGroupsPage = pathname.startsWith('/groups');
+  const isMarketPage = pathname.startsWith('/market');
+  const isWidePage = isMessagesPage || isProfilePage || isGroupsPage || isMarketPage;
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white font-black italic text-2xl animate-pulse">LOADING...</div>;
+  if (loading) return <div className="min-h-screen flex flex-col items-center justify-center bg-white dark:bg-slate-950 text-black dark:text-white transition-colors duration-500">
+    <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-2xl mb-4 overflow-hidden">
+      <img src="/logo.png" alt="Loading..." className="w-full h-full object-cover" />
+    </div>
+    <div className="font-black italic text-xl animate-pulse tracking-widest uppercase">CebSocial</div>
+  </div>;
   if (!user) return <Auth onAuthComplete={fetchData} />;
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] dark:bg-slate-900 text-[#1E293B] dark:text-slate-200 font-sans pb-20 transition-colors duration-300">
+    <div className={`min-h-screen surface-main text-main font-sans transition-all duration-700 ease-in-out ${isMessagesPage ? 'pb-0' : 'pb-20 lg:pb-0'}`}>
         <div className="fixed inset-0 pointer-events-none z-[1000] flex flex-col items-center justify-end p-8 space-y-4">
             {toasts.map(toast => (
                 <div key={toast.id} className="pointer-events-auto">
@@ -108,42 +117,48 @@ export default function DashboardShell({ children }) {
           markAsRead={markNotificationsAsRead}
           userAvatar={user.avatar} isDarkMode={isDarkMode} setIsDarkMode={toggleDarkMode}
           language={language} setLanguage={setLanguage}
+          allUsers={allUsers}
+          isFullWidth={isMessagesPage}
         />
 
-        <main className="max-w-7xl mx-auto px-4 py-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
-          <div className="lg:col-span-3 hidden lg:block">
-            <Sidebar
-              user={user} activeFilter={activeFilter} setActiveFilter={setActiveFilter} zones={CEBU_ZONES}
-              isEditingProfile={false} setIsEditingProfile={() => router.push('/profile')}
-              joinedGroups={groups.filter(g => g.isJoined)}
-              onSelectGroup={(group) => router.push(`/groups/${group.id}`)}
-            />
+        <main className={`${isMessagesPage ? 'max-w-none px-0 py-0' : 'max-w-7xl mx-auto px-4 py-8'} grid grid-cols-1 lg:grid-cols-12 gap-8 transition-all duration-500`}>
+          <div className={`${isMessagesPage ? 'hidden' : 'lg:col-span-3 hidden lg:block'}`}>
+            <div className="sticky top-28 space-y-6">
+              <Sidebar
+                user={user} activeFilter={activeFilter} setActiveFilter={setActiveFilter} zones={CEBU_ZONES}
+                isEditingProfile={false} setIsEditingProfile={() => router.push('/profile')}
+                joinedGroups={groups.filter(g => g.isJoined)}
+                onSelectGroup={(group) => router.push(`/groups/${group.id}`)}
+              />
+            </div>
           </div>
 
-          <div className={`${isMessagesPage ? 'lg:col-span-9' : 'lg:col-span-6'} space-y-6 transition-all duration-500`}>
+          <div className={`${isMessagesPage ? 'lg:col-span-12' : (isWidePage ? 'lg:col-span-9' : 'lg:col-span-6')} ${isMessagesPage ? '' : 'space-y-6'} transition-all duration-500`}>
             {children}
           </div>
 
-          {!isMessagesPage && (
-            <div className="lg:col-span-3 hidden lg:block space-y-6">
-                <Weather />
-                <Leaderboard
-                    currentUser={user}
-                    data={leaderboard}
-                    trendingZone={trendingZone}
-                    onSelectGroup={(g) => router.push(`/groups/${g.id}`)}
-                    setActiveTab={handleTabChange}
-                />
+          {!isWidePage && (
+            <div className="lg:col-span-3 hidden lg:block">
+                <div className="sticky top-28 space-y-6">
+                    <Weather />
+                    <Leaderboard
+                        currentUser={user}
+                        data={leaderboard}
+                        trendingZone={trendingZone}
+                        onSelectGroup={(g) => router.push(`/groups/${g.id}`)}
+                        setActiveTab={handleTabChange}
+                    />
+                </div>
             </div>
           )}
         </main>
 
         {/* Mobile Navigation Bar */}
-        <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-lg border-t border-gray-100 dark:border-slate-800 px-6 py-3 flex justify-between items-center z-[100] shadow-2xl">
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-black/90 backdrop-blur-xl border-t surface-card px-6 py-3 flex justify-between items-center z-[100] shadow-[0_-10px_40px_rgba(0,0,0,0.1)] dark:shadow-none">
             {[
               { id: 'Feed', icon: <Home size={20} />, label: t.feed },
               { id: 'Market', icon: <ShoppingBag size={20} />, label: t.market },
-              { id: 'Create', icon: <div className="bg-blue-600 text-white p-3 rounded-2xl shadow-lg shadow-blue-200 -mt-8 border-4 border-[#F8FAFC] dark:border-slate-950 hover:scale-110 active:scale-95 transition-all"><Plus size={24} /></div>, label: '' },
+              { id: 'Create', icon: <div className="bg-primary-600 text-white p-3 rounded-2xl shadow-xl shadow-primary-500/20 -mt-8 border-4 surface-card hover:scale-110 active:scale-95 transition-all duration-300"><Plus size={24} /></div>, label: '' },
               { id: 'Messages', icon: <MessageSquare size={20} />, label: t.messages },
               { id: 'Profile', icon: <User size={20} />, label: t.profile }
             ].map(tab => (
@@ -160,7 +175,7 @@ export default function DashboardShell({ children }) {
                       }
                       handleTabChange(tab.id);
                   }}
-                  className={`flex flex-col items-center space-y-1 transition-all ${activeTab === tab.id ? 'text-blue-600 scale-110' : 'text-gray-400'}`}
+                  className={`flex flex-col items-center space-y-1 transition-all duration-300 ${activeTab === tab.id ? 'text-primary-600 scale-110 font-black' : 'text-muted'}`}
                 >
                     {tab.icon}
                     {tab.label && <span className="text-[8px] font-black uppercase tracking-widest">{tab.label}</span>}

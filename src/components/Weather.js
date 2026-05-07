@@ -36,7 +36,7 @@ export default function Weather() {
   };
 
   return (
-    <div className="bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] border border-gray-100 dark:border-slate-800 shadow-sm bg-gradient-to-br from-blue-500 to-blue-700 text-white relative overflow-hidden transition-all hover:shadow-lg">
+    <div className="bg-black dark:bg-white p-6 rounded-[2.5rem] border border-gray-100 dark:border-slate-800 shadow-sm text-white dark:text-black relative overflow-hidden transition-all hover:shadow-lg">
         <div className="absolute top-0 right-0 p-4 opacity-20">
             <WeatherIcon />
         </div>

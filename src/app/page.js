@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Globe, Search } from 'lucide-react';
+import { Globe, Search, AlertTriangle, Users, MessageSquare, Plus } from 'lucide-react';
 import { useSocial } from '../contexts/SocialContext';
 import Composer from '../components/Composer';
 import PostCard from '../components/PostCard';
@@ -16,7 +16,7 @@ export default function FeedPage() {
     user, posts, loading, createPost, handleLike, handleAddComment,
     handleDeletePost, toggleSaveItem, handleJoinEvent, handleVote,
     calculateDistance, addToast, t, dbStatus, activeFilter, searchQuery,
-    setSelectedImage, setViewingNeighbor
+    setSelectedImage, setViewingNeighbor, allUsers
   } = useSocial();
 
   const [activeFeedCategory, setActiveFeedCategory] = useState('All');
@@ -74,81 +74,92 @@ export default function FeedPage() {
 
   return (
     <DashboardShell>
-      <div className="space-y-6">
-        <div ref={composerRef}>
-            <Composer
-                activeTab="Feed" user={user}
-                newPostContent={newPostContent} setNewPostContent={setNewPostContent}
-                postType={postType} setPostType={setPostType}
-                selectedZone={selectedZone} setSelectedZone={setSelectedZone}
-                handleMainPost={handleMainPost} zones={CEBU_ZONES}
-                pendingImage={pendingImage} setPendingImage={setPendingImage}
-                feedCategory={feedCategory} setFeedCategory={setFeedCategory}
-                eventDate={eventDate} setEventDate={setEventDate}
-                pollOptions={pollOptions} setPollOptions={setPollOptions}
-                rideDetails={rideDetails} setRideDetails={setRideDetails}
-                isSubmitting={isSubmitting}
-            />
-        </div>
+      {user && (
+        <div className="space-y-6">
+          <div ref={composerRef}>
+              <Composer
+                  activeTab="Feed" user={user} t={t}
+                  newPostContent={newPostContent} setNewPostContent={setNewPostContent}
+                  postType={postType} setPostType={setPostType}
+                  selectedZone={selectedZone} setSelectedZone={setSelectedZone}
+                  handleMainPost={handleMainPost} zones={CEBU_ZONES}
+                  pendingImage={pendingImage} setPendingImage={setPendingImage}
+                  feedCategory={feedCategory} setFeedCategory={setFeedCategory}
+                  eventDate={eventDate} setEventDate={setEventDate}
+                  pollOptions={pollOptions} setPollOptions={setPollOptions}
+                  rideDetails={rideDetails} setRideDetails={setRideDetails}
+                  isSubmitting={isSubmitting}
+              />
+          </div>
 
-        <div className="flex justify-between items-center mb-6 px-2">
-           <div className="flex flex-col">
-              <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center">
-                  <Globe size={14} className="mr-2 text-blue-500" />
-                  {searchQuery ? `Searching: "${searchQuery}"` : `Feed View • ${activeFilter}`}
-              </h3>
-              <div className="flex items-center space-x-2 mt-1 px-1">
-                  <div className={`w-1.5 h-1.5 rounded-full animate-pulse ${dbStatus === 'online' ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                  <span className="text-[8px] font-black text-gray-300 uppercase tracking-tighter">DB Status: {dbStatus}</span>
+
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 px-2">
+             <div className="flex flex-col">
+                <h3 className="text-xl font-black text-gray-900 dark:text-white uppercase italic tracking-tighter flex items-center">
+                    {searchQuery ? `Results for "${searchQuery}"` : `Neighborhood Feed`}
+                </h3>
+                <div className="flex items-center gap-2 mt-1">
+                    <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
+                    <p className="text-[10px] text-gray-400 font-black uppercase tracking-[0.2em]">Live in {activeFilter}</p>
+                </div>
+             </div>
+
+             <div className="flex space-x-2 overflow-x-auto no-scrollbar py-2 -mx-2 px-2">
+                  {[
+                      { id: 'All', label: 'All', icon: <Globe size={14}/> },
+                      { id: 'Alerts', label: 'Alerts', icon: <AlertTriangle size={14}/> },
+                      { id: 'Pasabay', label: 'Pasabay', icon: <Users size={14}/> },
+                      { id: 'General', label: 'General', icon: <MessageSquare size={14}/> }
+                  ].map(cat => (
+                      <button
+                          key={cat.id}
+                          onClick={() => setActiveFeedCategory(cat.id)}
+                          className={`flex items-center gap-2.5 px-6 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap border-2 ${activeFeedCategory === cat.id ? 'bg-primary-600 text-white border-primary-600 shadow-xl shadow-primary-500/20 scale-105' : 'bg-white dark:bg-slate-900 text-muted border-gray-100 dark:border-slate-800 hover:border-primary-600/30'}`}
+                      >
+                          {cat.icon}
+                          {cat.label}
+                      </button>
+                  ))}
               </div>
-           </div>
-        </div>
+          </div>
 
-        <div className="flex space-x-2 overflow-x-auto no-scrollbar pb-2">
-            {['All', 'Alerts', 'Pasabay', 'News', 'Question', 'Lost & Found', 'General'].map(cat => (
-                <button key={cat} onClick={() => setActiveFeedCategory(cat)} className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap border ${activeFeedCategory === cat ? (cat === 'Alerts' ? 'bg-red-600 text-white border-red-600 shadow-md shadow-red-100' : cat === 'Pasabay' ? 'bg-green-600 text-white border-green-600 shadow-md shadow-green-100' : 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-100') : 'bg-white dark:bg-slate-900 text-gray-400 border-gray-100 dark:border-slate-800'}`}>{cat}</button>
-            ))}
+          <div className="space-y-4">
+            {loading ? (
+                Array(3).fill(0).map((_, i) => <Skeleton key={i} type="post" />)
+            ) : (
+                filteredPosts.length > 0 ? (
+                    filteredPosts.map(post => (
+                        <PostCard
+                          key={post.id} post={post} user={user}
+                          handleLike={handleLike}
+                          toggleSave={(id) => toggleSaveItem(id, 'post')}
+                          handleAddComment={handleAddComment}
+                          commentInput={commentInputs[post.id] || ''}
+                          setCommentInput={(val) => setCommentInputs({...commentInputs, [post.id]: val})}
+                          onDelete={handleDeletePost}
+                          onJoinEvent={handleJoinEvent}
+                          onViewProfile={(profile) => router.push(`/profile/${profile.id}`)}
+                          onShare={(id) => {
+                              const url = window.location.origin;
+                              navigator.clipboard.writeText(`${url}/post/${id}`);
+                              addToast('Link copied!');
+                          }}
+                          onReport={() => addToast('Reported', 'info')}
+                          onSetReminder={() => addToast('Reminder set')}
+                          t={t}
+                        />
+                    ))
+                ) : (
+                    <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-gray-100 dark:border-slate-800 p-12 text-center shadow-sm">
+                        <Search size={40} className="mx-auto text-gray-200 mb-4" />
+                        <h3 className="text-sm font-black uppercase text-gray-400 tracking-widest">{t.no_posts}</h3>
+                        <p className="text-[10px] text-gray-400 mt-2 font-medium">{t.be_first}</p>
+                    </div>
+                )
+            )}
+          </div>
         </div>
-
-        <div className="space-y-4">
-          {loading ? (
-              Array(3).fill(0).map((_, i) => <Skeleton key={i} type="post" />)
-          ) : (
-              filteredPosts.length > 0 ? (
-                  filteredPosts.map(post => (
-                      <PostCard
-                        key={post.id} post={post} user={user}
-                        handleLike={handleLike}
-                        toggleSave={(id) => toggleSaveItem(id, 'post')}
-                        handleAddComment={handleAddComment}
-                        commentInput={commentInputs[post.id] || ''}
-                        setCommentInput={(val) => setCommentInputs({...commentInputs, [post.id]: val})}
-                        onDelete={handleDeletePost}
-                        onJoinEvent={handleJoinEvent}
-                        onVote={handleVote}
-                        distance={calculateDistance(post.coords)}
-                        onImageClick={setSelectedImage}
-                        onViewProfile={(profile) => router.push(`/profile/${profile.id}`)}
-                        onShare={(id) => {
-                            const url = window.location.origin;
-                            navigator.clipboard.writeText(`${url}/post/${id}`);
-                            addToast('Link copied!');
-                        }}
-                        onReport={() => addToast('Reported', 'info')}
-                        onSetReminder={() => addToast('Reminder set')}
-                        t={t}
-                      />
-                  ))
-              ) : (
-                  <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-gray-100 dark:border-slate-800 p-12 text-center shadow-sm">
-                      <Search size={40} className="mx-auto text-gray-200 mb-4" />
-                      <h3 className="text-sm font-black uppercase text-gray-400 tracking-widest">{t.no_posts}</h3>
-                      <p className="text-[10px] text-gray-400 mt-2 font-medium">{t.be_first}</p>
-                  </div>
-              )
-          )}
-        </div>
-      </div>
+      )}
     </DashboardShell>
   );
 }

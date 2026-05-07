@@ -15,6 +15,8 @@ export default function ProfilePage() {
 
   const [commentInputs, setCommentInputs] = useState({});
 
+  if (!user) return <DashboardShell />;
+
   return (
     <DashboardShell>
         <Profile

@@ -5,6 +5,9 @@ import './globals.css';
 export const metadata = {
   title: 'CebSocial - Your Local Cebuano Community',
   description: 'Connect with your neighbors in Cebu City',
+  icons: {
+    icon: '/logo.png',
+  },
 };
 
 export default function RootLayout({ children }) {
