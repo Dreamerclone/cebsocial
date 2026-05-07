@@ -6,7 +6,7 @@ import { Heart, MessageCircle, Bookmark, Send, Tag, Trash2, X, Check, Users, Sha
 export default function PostCard({
     post, user, handleLike, toggleSave, handleAddComment, commentInput,
     setCommentInput, onDelete, onShare, onJoinEvent, onVote, onReport,
-    distance, onSetReminder, onImageClick, onViewProfile
+    distance, onSetReminder, onImageClick, onViewProfile, t
 }) {
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
   const [showConfirmReport, setShowConfirmReport] = useState(false); // New: Report state
@@ -27,7 +27,7 @@ export default function PostCard({
   };
 
   return (
-    <div className={`bg-white dark:bg-slate-900 rounded-[2.5rem] border p-7 shadow-sm transition-all relative ${post.type === 'Alert' ? 'border-red-100 ring-4 ring-red-50/20' : post.type === 'Event' ? 'border-amber-100 ring-4 ring-amber-50/20' : post.type === 'Poll' ? 'border-purple-100 ring-4 ring-purple-50/20' : 'border-gray-100 dark:border-slate-800'}`}>
+    <div className={`bg-white dark:bg-slate-900 rounded-[2.5rem] border p-7 shadow-sm transition-all relative card-hover ${post.type === 'Alert' ? 'border-red-100 ring-4 ring-red-50/20' : post.type === 'Event' ? 'border-amber-100 ring-4 ring-amber-50/20' : post.type === 'Poll' ? 'border-purple-100 ring-4 ring-purple-50/20' : post.type === 'Ride' ? 'border-green-100 ring-4 ring-green-50/20' : 'border-gray-100 dark:border-slate-800'}`}>
 
       {/* CONFETTI EFFECT */}
       {showConfetti && (
@@ -67,8 +67,8 @@ export default function PostCard({
 
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center space-x-3 cursor-pointer group/auth" onClick={() => onViewProfile && onViewProfile(post.profiles)}>
-          <div className={`w-10 h-10 rounded-xl ${post.type === 'Alert' ? 'bg-red-500' : post.type === 'Event' ? 'bg-amber-500' : post.type === 'Poll' ? 'bg-purple-500' : user?.color || 'bg-blue-600'} flex items-center justify-center text-white text-xs font-black shadow-lg overflow-hidden transition-transform group-hover/auth:scale-110`}>
-            {post.profiles?.avatar_url ? <img src={post.profiles.avatar_url} className="w-full h-full object-cover" /> : (post.type === 'Alert' ? '!' : post.type === 'Event' ? 'CAL' : post.type === 'Poll' ? 'VOTE' : (post.author ? post.author[0] : '?'))}
+          <div className={`w-10 h-10 rounded-xl ${post.type === 'Alert' ? 'bg-red-500' : post.type === 'Event' ? 'bg-amber-500' : post.type === 'Poll' ? 'bg-purple-500' : post.type === 'Ride' ? 'bg-green-500' : user?.color || 'bg-blue-600'} flex items-center justify-center text-white text-xs font-black shadow-lg overflow-hidden transition-transform group-hover/auth:scale-110`}>
+            {post.profiles?.avatar_url ? <img src={post.profiles.avatar_url} className="w-full h-full object-cover" /> : (post.type === 'Alert' ? '!' : post.type === 'Event' ? 'CAL' : post.type === 'Poll' ? 'VOTE' : post.type === 'Ride' ? 'RIDE' : (post.author ? post.author[0] : '?'))}
           </div>
           <div>
             <div className="flex items-center space-x-2">
@@ -87,15 +87,26 @@ export default function PostCard({
           </div>
         </div>
         <div className="flex items-center space-x-1">
-            <button onClick={() => setShowConfirmReport(true)} className="p-2 text-gray-300 hover:text-amber-500 transition-colors" title="Report Post">
+            <button onClick={() => setShowConfirmReport(true)} className="p-2 text-gray-300 hover:text-amber-500 transition-colors button-pop" title="Report Post">
                 <Flag size={18} />
             </button>
-            {post.author === user?.name && <button onClick={() => setShowConfirmDelete(true)} className="p-2 text-gray-300 hover:text-red-500"><Trash2 size={18} /></button>}
-            <button onClick={() => toggleSave(post.id, 'post')} className={`p-2 rounded-xl transition-all ${post.isSaved ? 'text-blue-600 bg-blue-50' : 'text-gray-300'}`}><Bookmark size={18} fill={post.isSaved ? "currentColor" : "none"} /></button>
+            {post.author === user?.name && <button onClick={() => setShowConfirmDelete(true)} className="p-2 text-gray-300 hover:text-red-500 button-pop"><Trash2 size={18} /></button>}
+            <button onClick={() => toggleSave(post.id, 'post')} className={`p-2 rounded-xl transition-all button-pop ${post.isSaved ? 'text-blue-600 bg-blue-50' : 'text-gray-300'}`}><Bookmark size={18} fill={post.isSaved ? "currentColor" : "none"} /></button>
         </div>
       </div>
 
-      {/* EVENT DATE TAG */}
+      {/* RIDE INFO TAG */}
+      {post.type === 'Ride' && (
+          <div className="mb-4 flex flex-wrap gap-2">
+              <div className="inline-flex items-center space-x-2 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-4 py-1.5 rounded-full border border-green-100 dark:border-green-800 animate-slide-down">
+                  <MapPin size={12}/> <span className="text-[10px] font-black uppercase tracking-widest">{t?.going_to || 'Going to'}: {post.destination} {t?.from || 'from'} {post.location}</span>
+              </div>
+              <div className="inline-flex items-center space-x-2 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-4 py-1.5 rounded-full border border-green-100 dark:border-green-800 animate-slide-down">
+                  <Users size={12}/> <span className="text-[10px] font-black uppercase tracking-widest">{post.seats} {t?.seats_available || 'seats available'}</span>
+              </div>
+          </div>
+      )}
+
       {post.type === 'Event' && post.eventDate && (
           <div className="mb-4 inline-flex items-center space-x-2 bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-4 py-1.5 rounded-full border border-amber-100 dark:border-amber-800 animate-slide-down">
               <Calendar size={12}/> <span className="text-[10px] font-black uppercase tracking-widest">Scheduled: {post.eventDate}</span>
@@ -158,7 +169,7 @@ export default function PostCard({
         <div className="relative flex items-center space-x-2">
             <button
                 onClick={() => handleLike(post.id)}
-                className={`flex items-center space-x-2 font-black transition-all ${post.hasLiked ? 'scale-110 text-red-500' : 'text-gray-400 hover:text-red-500'}`}
+                className={`flex items-center space-x-2 font-black transition-all button-pop ${post.hasLiked ? 'scale-110 text-red-500' : 'text-gray-400 hover:text-red-500'}`}
             >
                 <Heart size={18} fill={post.hasLiked ? "currentColor" : "none"} />
             </button>
@@ -167,11 +178,23 @@ export default function PostCard({
             </span>
         </div>
 
-        <button onClick={() => setShowComments(!showComments)} className={`flex items-center space-x-2 font-black transition-all ${showComments ? 'text-blue-600' : 'text-gray-400'}`}>
+        <button onClick={() => setShowComments(!showComments)} className={`flex items-center space-x-2 font-black transition-all button-pop ${showComments ? 'text-blue-600' : 'text-gray-400'}`}>
           <MessageCircle size={18} /><span className="text-xs">{post.comments.length}</span>
         </button>
 
-        <button onClick={() => onShare(post.id)} className="flex items-center space-x-2 text-gray-400 hover:text-blue-600 font-black"><Share2 size={18} /><span className="text-xs">Share</span></button>
+        <button onClick={() => onShare(post.id)} className="flex items-center space-x-2 text-gray-400 hover:text-blue-600 font-black button-pop"><Share2 size={18} /><span className="text-xs">Share</span></button>
+
+        {post.user_id !== user?.id && (
+            <button
+                onClick={() => {
+                    onViewProfile && onViewProfile(post.profiles);
+                    // The profile modal will now show the message button
+                }}
+                className="flex items-center space-x-2 text-gray-400 hover:text-blue-600 font-black"
+            >
+                <MessageCircle size={18} /><span className="text-xs">Chat</span>
+            </button>
+        )}
 
         {/* EVENT JOIN */}
         {post.type === 'Event' && (

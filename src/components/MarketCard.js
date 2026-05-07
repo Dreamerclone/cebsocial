@@ -1,17 +1,18 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ShoppingBag, Bookmark, MapPin, MessageCircle, Tag, Star, X, Flag, ShieldCheck, Share2 } from 'lucide-react';
+import { ShoppingBag, Bookmark, MapPin, MessageCircle, Tag, Star, X, Flag, ShieldCheck, Share2, Edit3 } from 'lucide-react';
 
-export default function MarketCard({ item, toggleSave, onMessage, onViewShop, onReport, distance, onMarkSold, currentUser, onShare, onImageClick, onViewProfile }) {
+export default function MarketCard({ item, toggleSave, onMessage, onViewShop, onReport, distance, onMarkSold, onDelete, onEdit, currentUser, onShare, onImageClick, onViewProfile }) {
   const [showRateModal, setShowRateModal] = useState(false);
   const [showConfirmReport, setShowConfirmReport] = useState(false);
+  const [showConfirmDelete, setShowConfirmDelete] = useState(false);
   const [userRating, setUserRating] = useState(0);
 
   return (
     <div
         onClick={() => onViewShop(item)}
-        className={`bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] border border-gray-100 dark:border-slate-800 shadow-sm overflow-hidden group hover:border-blue-200 transition-all cursor-pointer relative ${item.isSold ? 'opacity-75' : ''}`}
+        className={`bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] border border-gray-100 dark:border-slate-800 shadow-sm overflow-hidden group hover:border-blue-200 transition-all cursor-pointer relative card-hover ${item.isSold ? 'opacity-75' : ''}`}
     >
 
       {/* SOLD STAMP */}
@@ -19,6 +20,18 @@ export default function MarketCard({ item, toggleSave, onMessage, onViewShop, on
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 rotate-[-12deg] pointer-events-none">
               <div className="border-4 border-red-500 rounded-xl px-6 py-2">
                   <span className="text-4xl font-black text-red-500 uppercase tracking-widest opacity-80">SOLD</span>
+              </div>
+          </div>
+      )}
+
+      {/* DELETE CONFIRMATION */}
+      {showConfirmDelete && (
+          <div className="absolute inset-0 bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm z-20 rounded-[2.5rem] flex flex-col items-center justify-center p-6 text-center animate-slide-down" onClick={(e) => e.stopPropagation()}>
+              <div className="w-12 h-12 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-2xl flex items-center justify-center mb-3"><Flag size={24} /></div>
+              <h4 className="font-black text-sm text-gray-900 dark:text-slate-100 uppercase tracking-widest">Delete Listing?</h4>
+              <div className="flex space-x-3 mt-4">
+                  <button onClick={() => setShowConfirmDelete(false)} className="px-6 py-2 rounded-xl bg-gray-100 dark:bg-slate-800 text-[10px] font-black uppercase">Cancel</button>
+                  <button onClick={() => { onDelete(item.id); setShowConfirmDelete(false); }} className="px-6 py-2 rounded-xl bg-red-600 text-white text-[10px] font-black uppercase shadow-lg shadow-red-100">Confirm</button>
               </div>
           </div>
       )}
@@ -110,39 +123,57 @@ export default function MarketCard({ item, toggleSave, onMessage, onViewShop, on
         <div className="text-right">
             <p className="text-xl font-black text-green-600 dark:text-green-400 leading-none italic">{item.price}</p>
             <div className="flex items-center justify-end space-x-2 mt-3">
-                {item.author === currentUser.name && (
-                    <button
-                        onClick={(e) => { e.stopPropagation(); onMarkSold(item.id); }}
-                        className={`px-3 py-2 rounded-xl text-[9px] font-black uppercase transition-all ${item.isSold ? 'bg-green-500 text-white' : 'bg-gray-100 dark:bg-slate-800 text-gray-400'}`}
-                    >
-                        {item.isSold ? 'Available' : 'Mark Sold'}
-                    </button>
+                {item.user_id === currentUser.id && (
+                    <>
+                        <button
+                            onClick={(e) => { e.stopPropagation(); onMarkSold(item.id); }}
+                            className={`px-3 py-2 rounded-xl text-[9px] font-black uppercase transition-all ${item.isSold ? 'bg-green-500 text-white shadow-lg shadow-green-100' : 'bg-gray-100 dark:bg-slate-800 text-gray-400 hover:bg-gray-200'}`}
+                        >
+                            {item.isSold ? 'Set Available' : 'Mark Sold'}
+                        </button>
+                        <button
+                            onClick={(e) => { e.stopPropagation(); onEdit(item); }}
+                            className="p-2 bg-blue-50 text-blue-400 hover:text-blue-600 hover:bg-blue-100 rounded-xl transition-all button-pop"
+                            title="Edit Listing"
+                        >
+                            <Edit3 size={14} />
+                        </button>
+                        <button
+                            onClick={(e) => { e.stopPropagation(); setShowConfirmDelete(true); }}
+                            className="p-2 bg-red-50 text-red-400 hover:text-red-600 hover:bg-red-100 rounded-xl transition-all button-pop"
+                            title="Delete Listing"
+                        >
+                            <X size={14} />
+                        </button>
+                    </>
                 )}
                 <button
                     onClick={(e) => { e.stopPropagation(); onShare(); }}
-                    className="p-2 bg-gray-50 dark:bg-slate-800 text-gray-400 hover:text-blue-600 rounded-xl transition-all"
+                    className="p-2 bg-gray-50 dark:bg-slate-800 text-gray-400 hover:text-blue-600 rounded-xl transition-all button-pop"
                     title="Share Listing"
                 >
                     <Share2 size={14} />
                 </button>
                 <button
                     onClick={(e) => { e.stopPropagation(); setShowConfirmReport(true); }}
-                    className="p-2 bg-gray-50 dark:bg-slate-800 text-gray-400 hover:text-amber-500 rounded-xl transition-all"
+                    className="p-2 bg-gray-50 dark:bg-slate-800 text-gray-400 hover:text-amber-500 rounded-xl transition-all button-pop"
                     title="Report Listing"
                 >
                     <Flag size={14} />
                 </button>
                 <button
                     onClick={(e) => { e.stopPropagation(); setShowRateModal(true); }}
-                    className="p-2 bg-gray-50 dark:bg-slate-800 text-gray-400 hover:text-amber-500 hover:bg-amber-50 rounded-xl transition-all"
+                    className="p-2 bg-gray-50 dark:bg-slate-800 text-gray-400 hover:text-amber-500 hover:bg-amber-50 rounded-xl transition-all button-pop"
                     title="Rate Seller"
                 >
                     <Star size={14} />
                 </button>
-                <button onClick={(e) => { e.stopPropagation(); onMessage(); }} className="p-2 bg-gray-50 dark:bg-slate-800 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-700 rounded-xl transition-all">
-                    <MessageCircle size={14} />
-                </button>
-                <button onClick={(e) => { e.stopPropagation(); toggleSave(item.id, 'market'); }} className={`p-2 rounded-xl transition-all ${item.isSaved ? 'text-blue-600 bg-blue-50 dark:bg-blue-900/30' : 'text-gray-300 bg-gray-50 dark:bg-slate-800'}`}>
+                {item.user_id !== currentUser.id && (
+                    <button onClick={(e) => { e.stopPropagation(); onMessage(); }} className="p-2 bg-gray-50 dark:bg-slate-800 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-700 rounded-xl transition-all button-pop">
+                        <MessageCircle size={14} />
+                    </button>
+                )}
+                <button onClick={(e) => { e.stopPropagation(); toggleSave(item.id, 'market'); }} className={`p-2 rounded-xl transition-all button-pop ${item.isSaved ? 'text-blue-600 bg-blue-50 dark:bg-blue-900/30' : 'text-gray-300 bg-gray-50 dark:bg-slate-800'}`}>
                     <Bookmark size={14} fill={item.isSaved ? "currentColor" : "none"} />
                 </button>
             </div>

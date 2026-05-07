@@ -61,3 +61,25 @@ body {
 .animate-spin-slow {
   animation: spin-slow 8s linear infinite;
 }
+
+/* UI IMPROVEMENTS */
+.card-hover {
+  @apply transition-all duration-300 hover:shadow-2xl hover:shadow-blue-100 dark:hover:shadow-none hover:-translate-y-1;
+}
+
+.button-pop {
+  @apply active:scale-95 transition-transform duration-100;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+::selection {
+  background-color: rgba(37, 99, 235, 0.2);
+  color: #2563eb;
+}

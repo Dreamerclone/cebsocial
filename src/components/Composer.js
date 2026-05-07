@@ -1,11 +1,12 @@
 import React, { useRef, useState } from 'react';
-import { MapPin, Image as ImageIcon, X, Tag, AlertTriangle, Calendar, Plus, Minus, BarChart3, Loader2 } from 'lucide-react';
+import { MapPin, Image as ImageIcon, X, Tag, AlertTriangle, Calendar, Plus, Minus, BarChart3, Loader2, Users } from 'lucide-react';
 import { uploadImage } from '../lib/utils';
 
 export default function Composer({
   activeTab, user, newPostContent, setNewPostContent, postType, setPostType, newItem, setNewItem,
   selectedZone, setSelectedZone, handleMainPost, zones, marketCategories, pendingImage, setPendingImage,
-  feedCategory, setFeedCategory, eventDate, setEventDate, pollOptions, setPollOptions, isSubmitting
+  feedCategory, setFeedCategory, eventDate, setEventDate, pollOptions, setPollOptions,
+  rideDetails, setRideDetails, isSubmitting
 }) {
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef(null);
@@ -20,7 +21,7 @@ export default function Composer({
     }
   };
 
-  const feedCategories = ['News', 'Question', 'Lost & Found', 'General'];
+  const feedCategories = ['News', 'Question', 'Lost & Found', 'General', 'Ride'];
   const conditions = ['New', 'Used - Like New', 'Needs Repair'];
 
   return (
@@ -91,6 +92,30 @@ export default function Composer({
                         <input type="date" value={eventDate} onChange={(e) => setEventDate(e.target.value)} className="bg-transparent text-[10px] font-black uppercase outline-none text-amber-700 dark:text-amber-400 cursor-pointer" />
                     </div>
                 )}
+
+                {postType === 'Ride' && (
+                    <div className="flex flex-wrap items-center gap-2 animate-slide-down">
+                        <div className="flex items-center space-x-2 bg-green-50 dark:bg-green-900/20 px-3 py-1.5 rounded-xl border border-green-100 dark:border-green-800">
+                            <MapPin size={12} className="text-green-600" />
+                            <input
+                                placeholder="Destination"
+                                value={rideDetails?.destination || ''}
+                                onChange={(e) => setRideDetails({...rideDetails, destination: e.target.value})}
+                                className="bg-transparent text-[10px] font-black uppercase outline-none text-green-700 dark:text-green-400 w-24"
+                            />
+                        </div>
+                        <div className="flex items-center space-x-2 bg-green-50 dark:bg-green-900/20 px-3 py-1.5 rounded-xl border border-green-100 dark:border-green-800">
+                            <Users size={12} className="text-green-600" />
+                            <input
+                                type="number"
+                                placeholder="Seats"
+                                value={rideDetails?.seats || ''}
+                                onChange={(e) => setRideDetails({...rideDetails, seats: e.target.value})}
+                                className="bg-transparent text-[10px] font-black uppercase outline-none text-green-700 dark:text-green-400 w-12"
+                            />
+                        </div>
+                    </div>
+                )}
             </div>
           </div>
         ) : (
@@ -148,13 +173,13 @@ export default function Composer({
 
                 {activeTab === 'Feed' && (
                     <div className="flex items-center space-x-1 border-l border-gray-100 dark:border-slate-800 pl-2 overflow-x-auto no-scrollbar">
-                        {['Normal', 'Alert', 'Event', 'Poll'].map(type => (
+                        {['Normal', 'Alert', 'Event', 'Poll', 'Ride'].map(type => (
                             <button
                                 key={type}
                                 onClick={() => setPostType(type)}
-                                className={`flex items-center space-x-2 px-3 py-2 rounded-xl text-[9px] font-black uppercase transition-all flex-shrink-0 ${postType === type ? (type === 'Alert' ? 'bg-red-500 text-white shadow-lg' : type === 'Event' ? 'bg-amber-500 text-white shadow-lg' : type === 'Poll' ? 'bg-purple-600 text-white shadow-lg' : 'bg-blue-600 text-white shadow-lg') : 'bg-gray-50 dark:bg-slate-800 text-gray-400'}`}
+                                className={`flex items-center space-x-2 px-3 py-2 rounded-xl text-[9px] font-black uppercase transition-all flex-shrink-0 ${postType === type ? (type === 'Alert' ? 'bg-red-500 text-white shadow-lg' : type === 'Event' ? 'bg-amber-500 text-white shadow-lg' : type === 'Poll' ? 'bg-purple-600 text-white shadow-lg' : type === 'Ride' ? 'bg-green-600 text-white shadow-lg' : 'bg-blue-600 text-white shadow-lg') : 'bg-gray-50 dark:bg-slate-800 text-gray-400'}`}
                             >
-                                {type === 'Alert' ? <AlertTriangle size={12}/> : type === 'Event' ? <Calendar size={12}/> : type === 'Poll' ? <BarChart3 size={12}/> : <Tag size={12}/>}
+                                {type === 'Alert' ? <AlertTriangle size={12}/> : type === 'Event' ? <Calendar size={12}/> : type === 'Poll' ? <BarChart3 size={12}/> : type === 'Ride' ? <Users size={12}/> : <Tag size={12}/>}
                                 <span>{type}</span>
                             </button>
                         ))}

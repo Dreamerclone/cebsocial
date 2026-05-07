@@ -1,8 +1,10 @@
-import { Zap, TrendingUp, Award, Crown, Medal } from 'lucide-react';
+import { Zap, TrendingUp, Award, Crown, Medal, User } from 'lucide-react';
 import { useSocial } from '../contexts/SocialContext';
+import { useRouter } from 'next/navigation';
 
-export default function Leaderboard({ currentUser, data, trendingZone }) {
-  const { t } = useSocial();
+export default function Leaderboard({ currentUser, data, trendingZone, onSelectGroup, setActiveTab }) {
+  const { t, trendingGroups } = useSocial();
+  const router = useRouter();
   const leaderboardData = data && data.length > 0 ? data : [];
 
   const getRankIcon = (idx) => {
@@ -19,7 +21,10 @@ export default function Leaderboard({ currentUser, data, trendingZone }) {
         <h2 className="font-black text-[10px] uppercase tracking-widest text-gray-400 mb-6 italic flex items-center"><Zap className="mr-2 text-amber-500" size={16} /> Community Pulse</h2>
 
         {topNeighbor && (
-            <div className="p-5 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-3xl text-white mb-6 shadow-xl shadow-blue-100 dark:shadow-none overflow-hidden relative group">
+            <div
+                onClick={() => router.push(`/profile/${topNeighbor.id}`)}
+                className="p-5 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-3xl text-white mb-6 shadow-xl shadow-blue-100 dark:shadow-none overflow-hidden relative group cursor-pointer"
+            >
                 <div className="absolute top-0 right-0 p-4 opacity-20 group-hover:scale-110 transition-transform">
                     <Crown size={60} />
                 </div>
@@ -60,10 +65,47 @@ export default function Leaderboard({ currentUser, data, trendingZone }) {
             </div>
         </div>
 
+        {trendingGroups && trendingGroups.length > 0 && (
+            <div className="mb-8">
+                <h2 className="font-black text-[10px] uppercase tracking-widest text-gray-400 mb-4 italic flex items-center">
+                    <TrendingUp className="mr-2 text-indigo-500" size={16} /> Hot Communities
+                </h2>
+                <div className="space-y-3">
+                    {trendingGroups.map(group => (
+                        <div
+                            key={group.id}
+                            onClick={() => {
+                                if (onSelectGroup) onSelectGroup(group);
+                                if (setActiveTab) setActiveTab('Groups');
+                            }}
+                            className="flex items-center justify-between p-2 rounded-xl hover:bg-indigo-50 dark:hover:bg-indigo-900/10 transition-colors cursor-pointer group"
+                        >
+                            <div className="flex items-center space-x-3">
+                                <div className="w-8 h-8 rounded-lg overflow-hidden shadow-sm group-hover:rotate-6 transition-transform">
+                                    <img src={group.image} className="w-full h-full object-cover" />
+                                </div>
+                                <div className="overflow-hidden">
+                                    <p className="text-[10px] font-black text-gray-800 dark:text-slate-200 uppercase truncate w-24 tracking-tighter">{group.name}</p>
+                                    <p className="text-[8px] text-gray-400 font-bold uppercase tracking-widest">{(group.members || 0)} Neighbors</p>
+                                </div>
+                            </div>
+                            <div className="w-6 h-6 rounded-full bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center">
+                                <TrendingUp size={10} className="text-indigo-600" />
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        )}
+
         <h2 className="font-black text-[10px] uppercase tracking-widest text-gray-400 mb-4 italic flex items-center"><TrendingUp className="mr-2 text-blue-600" size={16} /> Top Performers</h2>
         <div className="space-y-3">
             {leaderboardData.length > 0 ? leaderboardData.map((neighbor, idx) => (
-                <div key={idx} className="flex items-center justify-between p-2 rounded-xl hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors group">
+                <div
+                    key={idx}
+                    onClick={() => router.push(`/profile/${neighbor.id}`)}
+                    className="flex items-center justify-between p-2 rounded-xl hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors group cursor-pointer"
+                >
                     <div className="flex items-center space-x-3">
                         <div className="w-4 flex justify-center">{getRankIcon(idx) || <span className="text-[10px] font-black text-gray-300">{idx + 1}</span>}</div>
                         <div className={`w-8 h-8 rounded-lg ${idx === 0 ? 'bg-amber-50 text-amber-600' : 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'} flex items-center justify-center text-[10px] font-black shadow-sm group-hover:scale-110 transition-transform`}>

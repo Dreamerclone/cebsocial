@@ -10,6 +10,19 @@ export function SocialProvider({ children }) {
   const [toasts, setToasts] = useState([]);
   const [language, setLanguage] = useState('en');
 
+  // UI States shared across routes
+  const [activeFilter, setActiveFilter] = useState('All City');
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Modal States
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [viewingNeighbor, setViewingNeighbor] = useState(null);
+  const [viewingShop, setViewingShop] = useState(null);
+  const [editingItem, setEditingItem] = useState(null);
+  const [isCreatingGroup, setIsCreatingGroup] = useState(false);
+  const [showMemberModal, setShowMemberModal] = useState(false);
+  const [currentGroupMembers, setCurrentGroupMembers] = useState([]);
+
   const t = useMemo(() => translations[language], [language]);
 
   const addToast = useCallback((message, type = 'success') => {
@@ -30,7 +43,19 @@ export function SocialProvider({ children }) {
     removeToast,
     language,
     setLanguage,
-    t
+    t,
+    activeFilter,
+    setActiveFilter,
+    searchQuery,
+    setSearchQuery,
+    // Modal states & setters
+    selectedImage, setSelectedImage,
+    viewingNeighbor, setViewingNeighbor,
+    viewingShop, setViewingShop,
+    editingItem, setEditingItem,
+    isCreatingGroup, setIsCreatingGroup,
+    showMemberModal, setShowMemberModal,
+    currentGroupMembers, setCurrentGroupMembers
   };
 
   return (

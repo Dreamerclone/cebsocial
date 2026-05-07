@@ -51,6 +51,13 @@ export const uploadImage = async (file, bucket = 'post-images') => {
     }
 };
 
+export const getReputationBadge = (karma) => {
+    if (karma >= 500) return { label: 'Community Leader', next: 1000, color: 'text-purple-600 bg-purple-50 dark:bg-purple-900/20' };
+    if (karma >= 200) return { label: 'Local Helper', next: 500, color: 'text-amber-600 bg-amber-50 dark:bg-amber-900/20' };
+    if (karma >= 100) return { label: 'Trusted Citizen', next: 200, color: 'text-blue-600 bg-blue-50 dark:bg-blue-900/20' };
+    return { label: 'New Neighbor', next: 100, color: 'text-gray-600 bg-gray-50 dark:bg-slate-800' };
+};
+
 export const calculateDistance = (userCoords, targetCoords) => {
     if (!userCoords || !targetCoords) return null;
     const R = 6371; // Earth's radius in km
@@ -90,19 +97,28 @@ export const formatTimeAgo = (date) => {
 };
 
 export const cleanText = (text) => {
-    if (!text) return '';
-    // Basic filter for toxic keywords (can be expanded)
+    if (!text) return { cleaned: '', isToxic: false };
+
     const badWords = ['pisting', 'atay', 'yawa', 'piste', 'boang', 'gago', 'putangina'];
-    let cleaned = text;
     let isToxic = false;
 
-    badWords.forEach(word => {
-        const regex = new RegExp(word, 'gi');
-        if (regex.test(text)) {
-            isToxic = true;
-            cleaned = cleaned.replace(regex, '***');
+    const words = text.split(/\s+/);
+    const cleanedWords = words.map(word => {
+        // Skip URL-like strings to avoid breaking images/links
+        if (word.startsWith('http') || word.includes('supabase.co')) {
+            return word;
         }
+
+        let cleanedWord = word;
+        badWords.forEach(bad => {
+            const regex = new RegExp(bad, 'gi');
+            if (regex.test(cleanedWord)) {
+                isToxic = true;
+                cleanedWord = cleanedWord.replace(regex, '***');
+            }
+        });
+        return cleanedWord;
     });
 
-    return { cleaned, isToxic };
+    return { cleaned: cleanedWords.join(' '), isToxic };
 };

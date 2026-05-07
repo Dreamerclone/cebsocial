@@ -87,13 +87,18 @@ export default function Navbar({
             {showNotifs && (
                 <div className="absolute right-0 mt-4 w-64 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-3xl shadow-2xl p-4 z-[100]">
                     <h4 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-3 px-2">Notifications</h4>
-                    <div className="space-y-2">
-                        {notifications.map(n => (
+                    <div className="space-y-2 max-h-[300px] overflow-y-auto no-scrollbar">
+                        {notifications.length > 0 ? notifications.map(n => (
                             <div key={n.id} className={`p-3 rounded-2xl text-[11px] ${n.unread ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300' : 'bg-gray-50 dark:bg-slate-800 text-gray-500 dark:text-slate-400'}`}>
                                 {n.text}
                                 <p className="text-[9px] mt-1 opacity-50">{n.time}</p>
                             </div>
-                        ))}
+                        )) : (
+                            <div className="py-8 text-center opacity-40">
+                                <Bell size={24} className="mx-auto mb-2 text-gray-300" />
+                                <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">No notifications</p>
+                            </div>
+                        )}
                     </div>
                 </div>
             )}

@@ -18,6 +18,11 @@ export const translations = {
     be_first: "Be the first to share something!",
     create_post: "Create Post",
     alerts: "Alerts",
+    ride_sharing: "Ride Sharing",
+    pasabay: "Pasabay",
+    seats_available: "seats available",
+    going_to: "Going to",
+    from: "from",
   },
   ceb: {
     welcome: "Maayong pag-abot, silingan!",
@@ -38,5 +43,10 @@ export const translations = {
     be_first: "Ikaw una’y pag-post!",
     create_post: "Paghimo og Post",
     alerts: "Pasidaan",
+    ride_sharing: "Pasakay",
+    pasabay: "Pasabay",
+    seats_available: "lingkoranan anaa",
+    going_to: "Padulong sa",
+    from: "gikan sa",
   }
 };
