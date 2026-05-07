@@ -14,6 +14,7 @@ export default function Messages({ chats, activeChat, activeChatProfile, onSendM
   const [isOtherTyping, setIsOtherTyping] = useState(false);
   const [readTimestamps, setReadTimestamps] = useState({});
   const messagesEndRef = useRef(null);
+  const messagesContainerRef = useRef(null); // New ref for the container
   const fileInputRef = useRef(null);
 
   const emojis = ['👋', '🙌', '🤝', '👍', '😊', '📍', '🛵', '🏠', '🥘', '✅'];
@@ -103,15 +104,22 @@ export default function Messages({ chats, activeChat, activeChatProfile, onSendM
   }, [activeChat, displayChat]);
 
   // --- AUTO-SCROLL LOGIC ---
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  const scrollToBottom = (isSmooth = true) => {
+    if (messagesContainerRef.current) {
+        messagesContainerRef.current.scrollTo({
+            top: messagesContainerRef.current.scrollHeight,
+            behavior: isSmooth ? "smooth" : "auto"
+        });
+    }
   };
 
   useEffect(() => {
     if ((currentChat || displayChat)?.messages) {
-      scrollToBottom();
+      // Use "auto" (no animation) for the first open to prevent "screen jumping"
+      const isFirstOpen = (currentChat || displayChat).messages.length <= 1;
+      scrollToBottom(!isFirstOpen);
     }
-  }, [currentChat?.messages, displayChat?.messages, isOtherTyping]);
+  }, [currentChat?.messages?.length, displayChat?.messages?.length, isOtherTyping]);
 
   // --- SOUND LOGIC (Simulated with AudioContext) ---
   const playSendSound = () => {
@@ -352,7 +360,10 @@ export default function Messages({ chats, activeChat, activeChatProfile, onSendM
                  </div>
               </div>
 
-              <div className="flex-1 p-6 space-y-6 overflow-y-auto bg-[#FBFBFE] dark:bg-slate-950/50 scroll-smooth no-scrollbar">
+              <div
+                ref={messagesContainerRef}
+                className="flex-1 p-6 space-y-6 overflow-y-auto bg-[#FBFBFE] dark:bg-slate-950/50 scroll-smooth no-scrollbar"
+              >
                 {(currentChat || displayChat?.messages?.length > 0) ? (currentChat || displayChat).messages.map((m, i) => {
                   const messageDate = new Date(m.time);
                   const showTimestamp = !isNaN(messageDate.getTime());

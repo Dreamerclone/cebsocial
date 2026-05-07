@@ -254,10 +254,14 @@ export function useSocialData(addToast) {
               addToast('New neighborhood activity! 🔔', 'info');
           }
       })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, (payload) => {
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
           console.log('📩 NEW MESSAGE RECEIVED:', payload);
+          // Only refetch if the current user is part of the conversation
           if (payload.new.receiver_id === user.id || payload.new.sender_id === user.id) {
-            fetchChats();
+              fetchChats();
+              if (payload.new.receiver_id === user.id) {
+                  addToast('New message received! 💬', 'info');
+              }
           }
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'groups' }, () => fetchGroups())
