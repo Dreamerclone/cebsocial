@@ -138,8 +138,7 @@ export default function Auth({ onAuthComplete }) {
                <img src="/logo.png" alt="CebSocial Logo" className="w-full h-full object-cover" />
              </div>
              <h1 className="text-7xl font-black text-white leading-[0.9] tracking-tighter uppercase italic">
-               Connect <br/>
-               <span className="text-primary-400">Your Zone.</span>
+               Ceb<span className="text-primary-400">Social</span>
              </h1>
           </div>
 
@@ -326,7 +325,7 @@ export default function Auth({ onAuthComplete }) {
               }}
               className="group text-[12px] font-black uppercase text-muted hover:text-main transition-colors tracking-[0.25em] relative pb-2"
             >
-              {isLogin ? "New here? Create Account" : "Joined before? Sign In"}
+              {isLogin ? "New here? Create an Account" : "Joined before? Sign In"}
               <div className="absolute bottom-0 left-0 w-full h-[2px] bg-gray-100 dark:bg-zinc-800 group-hover:bg-primary-600 transition-colors"></div>
             </button>
           </div>
