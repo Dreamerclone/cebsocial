@@ -127,51 +127,60 @@ export function useSocialData(addToast) {
 
   const fetchChats = useCallback(async () => {
     if (!user?.id) return;
-    const { data: mRes } = await supabase
-      .from('messages')
-      .select('*, sender:profiles!sender_id(id, full_name, avatar_url, neighborhood, karma), receiver:profiles!receiver_id(id, full_name, avatar_url, neighborhood, karma)')
-      .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
-      .order('created_at', { ascending: true });
+    try {
+      const { data: mRes, error } = await supabase
+        .from('messages')
+        .select('*, sender:profiles!sender_id(id, full_name, avatar_url, neighborhood, karma), receiver:profiles!receiver_id(id, full_name, avatar_url, neighborhood, karma)')
+        .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
+        .order('created_at', { ascending: true });
 
-    if (mRes) {
-      const chatMap = {};
-      mRes.forEach(m => {
-        const otherId = m.sender_id === user.id ? m.receiver_id : m.sender_id;
-        const otherProfile = m.sender_id === user.id ? m.receiver : m.sender;
+      if (error) throw error;
 
-        if (!chatMap[otherId] && otherProfile) {
-          chatMap[otherId] = {
-            id: otherId,
-            name: otherProfile.full_name || 'Neighbor',
-            avatar: otherProfile.avatar_url,
-            neighborhood: otherProfile.neighborhood,
-            karma: otherProfile.karma,
-            lastMsg: '',
-            hasUnread: false,
-            messages: []
-          };
-        }
+      if (mRes) {
+        const chatMap = {};
+        mRes.forEach(m => {
+          const otherId = m.sender_id === user.id ? m.receiver_id : m.sender_id;
+          const otherProfile = m.sender_id === user.id ? m.receiver : m.sender;
 
-        if (chatMap[otherId]) {
-          const isMe = m.sender_id === user.id;
-          chatMap[otherId].messages.push({
-            id: m.id,
-            text: m.content,
-            sender: isMe ? 'me' : 'them',
-            time: m.created_at,
-            unread: m.unread
-          });
-          chatMap[otherId].lastMsg = m.content;
-          if (!isMe && m.unread) {
-              chatMap[otherId].hasUnread = true;
+          if (!chatMap[otherId] && otherProfile) {
+            chatMap[otherId] = {
+              id: otherId,
+              name: otherProfile.full_name || 'Neighbor',
+              avatar: otherProfile.avatar_url,
+              neighborhood: otherProfile.neighborhood,
+              karma: otherProfile.karma,
+              lastMsg: '',
+              hasUnread: false,
+              messages: []
+            };
           }
-        }
-      });
-      setChats(Object.values(chatMap).sort((a, b) => {
-        const aLast = a.messages[a.messages.length - 1]?.time || 0;
-        const bLast = b.messages[b.messages.length - 1]?.time || 0;
-        return new Date(bLast) - new Date(aLast);
-      }));
+
+          if (chatMap[otherId]) {
+            const isMe = m.sender_id === user.id;
+            // Check if unread column exists in response, fallback to false
+            const isUnread = m.unread === true || m.is_read === false;
+
+            chatMap[otherId].messages.push({
+              id: m.id,
+              text: m.content,
+              sender: isMe ? 'me' : 'them',
+              time: m.created_at,
+              unread: isUnread
+            });
+            chatMap[otherId].lastMsg = m.content;
+            if (!isMe && isUnread) {
+                chatMap[otherId].hasUnread = true;
+            }
+          }
+        });
+        setChats(Object.values(chatMap).sort((a, b) => {
+          const aLast = a.messages[a.messages.length - 1]?.time || 0;
+          const bLast = b.messages[b.messages.length - 1]?.time || 0;
+          return new Date(bLast) - new Date(aLast);
+        }));
+      }
+    } catch (err) {
+      console.error('Error fetching chats:', err);
     }
   }, [user?.id]);
 
@@ -461,12 +470,28 @@ export function useSocialData(addToast) {
   const handleSendMessage = async (receiverId, content) => {
     if (!user || !content.trim()) return;
     const { cleaned } = cleanText(content);
-    const { error } = await supabase.from('messages').insert([{
+
+    // Attempting to send with unread tracking (trying both common column names)
+    let payload = {
         sender_id: user.id,
         receiver_id: receiverId,
         content: cleaned,
-        unread: true
-    }]);
+        unread: true,
+        is_read: false
+    };
+
+    let { error } = await supabase.from('messages').insert([payload]);
+
+    // If it fails because of extra columns, try the most basic insert
+    if (error && (error.code === '42703' || error.message?.includes('column'))) {
+        const fallbackPayload = {
+            sender_id: user.id,
+            receiver_id: receiverId,
+            content: cleaned
+        };
+        const retry = await supabase.from('messages').insert([fallbackPayload]);
+        error = retry.error;
+    }
 
     if (!error) {
         // Create a notification for the receiver
@@ -476,6 +501,9 @@ export function useSocialData(addToast) {
             unread: true
         }]);
         fetchChats();
+    } else {
+        console.error('Final Error sending message:', error);
+        addToast('Failed to send message', 'error');
     }
   };
 
@@ -593,12 +621,16 @@ export function useSocialData(addToast) {
 
   const markMessagesAsRead = async (otherId) => {
     if (!user || !otherId) return;
+
+    // Try updating 'unread' column
     const { error } = await supabase
         .from('messages')
         .update({ unread: false })
         .eq('receiver_id', user.id)
         .eq('sender_id', otherId)
         .eq('unread', true);
+
+    // If column doesn't exist, we just ignore the error as highlights won't work anyway
     if (!error) fetchChats();
   };
 
