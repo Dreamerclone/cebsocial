@@ -257,38 +257,41 @@ export default function Messages({ chats, activeChat, activeChatProfile, onSendM
         </div>
 
         <div className="flex-1 overflow-y-auto px-3 space-y-1 no-scrollbar">
-            {displayChats.length > 0 ? displayChats.map(chat => (
-                <button
-                    key={chat.id}
-                    onClick={() => onSelectChat(chat.id)}
-                    className={`w-full flex items-center gap-4 p-4 rounded-[1.5rem] transition-all duration-300 group ${activeChat === chat.id ? 'bg-primary-600 text-white shadow-xl shadow-primary-500/20' : 'hover:bg-white dark:hover:bg-zinc-900 text-main'}`}
-                >
-                    <div className="relative flex-shrink-0">
-                        <div className={`w-14 h-14 rounded-2xl overflow-hidden border-2 ${activeChat === chat.id ? 'border-white/20' : 'border-transparent'}`}>
-                            {chat.avatar ? <img src={chat.avatar} className="w-full h-full object-cover" /> : <div className="w-full h-full bg-primary-100 dark:bg-zinc-800 flex items-center justify-center text-primary-600 font-black text-xl">{chat.name[0]}</div>}
-                        </div>
-                        {formatActivityLabel(chat) === 'Active now' && (
-                            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-4 border-white dark:border-zinc-950 rounded-full"></div>
-                        )}
-                    </div>
-                    <div className="flex-1 text-left overflow-hidden">
-                        <div className="flex justify-between items-center mb-0.5">
-                            <span className={`text-[14px] uppercase truncate ${chat.hasUnread && activeChat !== chat.id ? 'font-black text-primary-600' : 'font-bold text-main'}`}>{chat.name}</span>
-                            <span className={`text-[10px] font-bold ${activeChat === chat.id ? 'text-white/60' : 'text-muted'}`}>
-                                {chat.messages?.length > 0 ? new Date(chat.messages[chat.messages.length-1].time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''}
-                            </span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                            <p className={`text-[12px] truncate flex-1 ${activeChat === chat.id ? 'text-white/80' : (chat.hasUnread ? 'text-main font-black' : 'text-muted font-medium')}`}>
-                                {chat.lastMsg}
-                            </p>
-                            {chat.hasUnread && activeChat !== chat.id && (
-                                <div className="w-2.5 h-2.5 bg-primary-600 rounded-full ml-2 shadow-lg shadow-primary-500/40 animate-pulse"></div>
+            {displayChats.length > 0 ? displayChats.map(chat => {
+                const isUnread = chat.hasUnread && activeChat !== chat.id;
+                return (
+                    <button
+                        key={chat.id}
+                        onClick={() => onSelectChat(chat.id)}
+                        className={`w-full flex items-center gap-4 p-4 rounded-[1.5rem] transition-all duration-300 group ${activeChat === chat.id ? 'bg-primary-600 text-white shadow-xl shadow-primary-500/20' : (isUnread ? 'bg-primary-50/50 dark:bg-primary-900/10 hover:bg-white dark:hover:bg-zinc-900' : 'hover:bg-white dark:hover:bg-zinc-900 text-main')}`}
+                    >
+                        <div className="relative flex-shrink-0">
+                            <div className={`w-14 h-14 rounded-2xl overflow-hidden border-2 ${activeChat === chat.id ? 'border-white/20' : (isUnread ? 'border-primary-500/30' : 'border-transparent')}`}>
+                                {chat.avatar ? <img src={chat.avatar} className="w-full h-full object-cover" /> : <div className="w-full h-full bg-primary-100 dark:bg-zinc-800 flex items-center justify-center text-primary-600 font-black text-xl">{chat.name[0]}</div>}
+                            </div>
+                            {formatActivityLabel(chat) === 'Active now' && (
+                                <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-4 border-white dark:border-zinc-950 rounded-full"></div>
                             )}
                         </div>
-                    </div>
-                </button>
-            )) : (
+                        <div className="flex-1 text-left overflow-hidden">
+                            <div className="flex justify-between items-center mb-0.5">
+                                <span className={`text-[14px] uppercase truncate ${activeChat === chat.id ? 'text-white font-black' : (isUnread ? 'font-black text-primary-600' : 'font-bold text-main')}`}>{chat.name}</span>
+                                <span className={`text-[10px] font-bold ${activeChat === chat.id ? 'text-white/60' : (isUnread ? 'text-primary-600' : 'text-muted')}`}>
+                                    {chat.messages?.length > 0 ? new Date(chat.messages[chat.messages.length-1].time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''}
+                                </span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                                <p className={`text-[12px] truncate flex-1 ${activeChat === chat.id ? 'text-white/80' : (isUnread ? 'text-main font-black' : 'text-muted font-medium')}`}>
+                                    {chat.lastMsg}
+                                </p>
+                                {isUnread && (
+                                    <div className="w-2.5 h-2.5 bg-primary-600 rounded-full ml-2 shadow-lg shadow-primary-500/40 animate-pulse"></div>
+                                )}
+                            </div>
+                        </div>
+                    </button>
+                );
+            }) : (
                 <div className="p-10 text-center opacity-30">
                     <p className="text-[10px] font-black uppercase tracking-widest">No conversations found</p>
                 </div>
